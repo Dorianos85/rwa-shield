@@ -1,5 +1,8 @@
 # RWA Shield — Executable Collateral Value
 
+**Landing:** https://dorianos85.github.io/rwa-shield/
+**Live demo path:** `DEMO_RUNBOOK.md`
+
 Warstwa ryzyka dla lendingu pod tokenizowane akcje na Solanie. Zamiast stałego LTV
 liczy **ECV** — kwotę USDC, jaką likwidacja pozycji realnie zwróci w obecnych
 warunkach płynności, sesji giełdowej i zmienności.
