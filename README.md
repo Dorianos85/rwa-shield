@@ -8,8 +8,6 @@ warunkach płynności, sesji giełdowej i zmienności.
 ECV = P_oracle × D(q) × S(q) × M(t) × V(σ)          B = breaker (bramkuje nowy kredyt)
 ```
 
-**Landing page:** [docs/](docs/) (GitHub Pages from `/docs`).
-
 ## Uruchomienie (zero instalacji, Node 20+)
 
 ```bash

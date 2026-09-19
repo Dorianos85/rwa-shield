@@ -1,179 +1,631 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RWA Shield — ECV</title>
+<meta name="color-scheme" content="dark">
+<title>RWA Shield — Executable Collateral Value</title>
 <style>
-  :root{--ink:#060A0C;--panel:#0D1417;--panel2:#111A1E;--line:#1C2A2F;--hi:#2A3E45;
-        --txt:#DCE8E8;--dim:#7C9195;--faint:#55686C;--green:#00FF88;--cyan:#00D4FF;--amber:#FFB020;--red:#FF4D5E;
-        --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;--sans:"IBM Plex Sans",system-ui,sans-serif}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--ink);color:var(--txt);font-family:var(--sans);font-size:15px;line-height:1.5}
-  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 70px}
-  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px}
-  h1{font-family:var(--mono);font-size:20px;letter-spacing:.06em;margin:0;color:var(--green)}
-  .tagline{color:var(--dim);font-size:13px}
-  .state{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint)}
-  .state b{color:var(--amber)}
-  h2{font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin:34px 0 12px;color:var(--txt)}
-  h2::before{content:"› ";color:var(--green)}
-  .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
-  @media(max-width:860px){.grid{grid-template-columns:1fr}}
-  .card{border:1px solid var(--line);background:var(--panel);padding:16px}
-  label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
-  label:first-child{margin-top:0}
-  input[type=range]{width:100%;accent-color:var(--green)}
-  select,button{font-family:var(--mono);font-size:12px;background:var(--panel2);color:var(--txt);border:1px solid var(--hi);padding:8px 10px;width:100%}
-  button{cursor:pointer;margin-top:14px}
-  button:hover{border-color:var(--green);color:var(--green)}
-  button.danger:hover{border-color:var(--red);color:var(--red)}
-  .val{font-family:var(--mono);font-size:13px;color:var(--cyan);float:right}
-  .wf{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
-  .wf .row{background:var(--panel);display:grid;grid-template-columns:1fr 86px 132px;gap:12px;padding:11px 14px;align-items:baseline}
-  .wf .row .op{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
-  .wf .row .n{font-family:var(--mono);font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
-  .wf .row.total{background:var(--panel2);border-top:1px solid var(--hi)}
-  .wf .row.total .n{color:var(--green);font-weight:700;font-size:16px}
-  .wf .row.fixed .n{color:var(--amber)}
-  .delta{margin-top:12px;font-size:13.5px;color:var(--dim)}
-  .delta b{color:var(--red)}
-  .pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 7px;border:1px solid}
-  .pill.ok{color:var(--green);border-color:rgba(0,255,136,.45)}
-  .pill.off{color:var(--red);border-color:rgba(255,77,94,.45)}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--hi);padding:8px 10px 8px 0}
-  td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-  td.red{color:var(--amber)}td.good{color:var(--green)}
-  .agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-  .agent{border:1px solid var(--line);background:var(--panel);padding:13px 15px}
-  .agent b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--cyan);display:block;margin-bottom:5px}
-  .agent span{font-size:13px;color:var(--dim)}
-  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--faint)}
+  :root {
+    --ink:#05090b; --panel:#0b1215; --panel-2:#101a1e; --line:#203036; --line-hi:#36505a;
+    --text:#e6efef; --dim:#8ba0a5; --faint:#5d7277; --green:#00f08a; --cyan:#29d9ff;
+    --amber:#ffb224; --red:#ff5566; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:Inter,"Segoe UI",system-ui,sans-serif;
+  }
+  * { box-sizing:border-box }
+  html { background:var(--ink); scroll-behavior:smooth }
+  body { margin:0; min-height:100vh; background:
+    radial-gradient(circle at 78% -10%, rgba(41,217,255,.09), transparent 34rem),
+    linear-gradient(180deg, #071014 0, var(--ink) 30rem); color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.45 }
+  button,select,input { font:inherit }
+  button:focus-visible,select:focus-visible,input:focus-visible { outline:2px solid var(--cyan); outline-offset:2px }
+  button { cursor:pointer }
+  .wrap { max-width:1260px; margin:0 auto; padding:18px 22px 76px }
+  header { display:flex; align-items:center; gap:18px; min-height:62px; border-bottom:1px solid var(--line) }
+  .brand { display:flex; align-items:center; gap:12px; min-width:max-content }
+  .shield { width:25px; height:29px; display:grid; place-items:center; color:var(--green); font:700 10px var(--mono);
+    border:1px solid currentColor; clip-path:polygon(50% 0,100% 18%,92% 74%,50% 100%,8% 74%,0 18%) }
+  h1 { margin:0; color:var(--green); font:700 18px/1 var(--mono); letter-spacing:.08em }
+  .tagline { color:var(--dim); font-size:12px; letter-spacing:.01em }
+  .runtime { margin-left:auto; text-align:right; color:var(--dim); font:11px/1.45 var(--mono) }
+  .runtime b { color:var(--amber); font-weight:600 }
+  .header-actions { display:flex; align-items:center; gap:8px }
+  .segmented { display:flex; padding:2px; border:1px solid var(--line); background:var(--panel) }
+  .segmented button { border:0; padding:7px 9px; background:transparent; color:var(--faint); font:10px var(--mono); letter-spacing:.08em; text-transform:uppercase }
+  .segmented button.active { background:var(--line); color:var(--text) }
+  .present-button { padding:8px 11px; border:1px solid rgba(0,240,138,.45); background:rgba(0,240,138,.06); color:var(--green); font:10px var(--mono); letter-spacing:.1em }
+  .present-button:hover { background:rgba(0,240,138,.12) }
+  .key { display:inline-grid; min-width:18px; height:18px; place-items:center; margin-left:4px; border:1px solid currentColor; border-radius:3px; font-size:9px }
+  .error { position:sticky; z-index:20; top:0; display:none; padding:10px 18px; background:#4b1420; color:#ffdce1; text-align:center; font:12px var(--mono) }
+  .error.show { display:block }
+
+  .story-nav { display:none }
+  .section { padding-top:34px }
+  .section-head { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,420px); gap:24px; align-items:end; margin-bottom:16px }
+  .kicker { display:block; margin-bottom:7px; color:var(--green); font:10px var(--mono); letter-spacing:.16em; text-transform:uppercase }
+  h2 { margin:0; font-size:clamp(24px,3vw,38px); line-height:1.07; letter-spacing:-.035em; font-weight:640 }
+  .lead { margin:0; color:var(--dim); font-size:14px }
+  .lead strong { color:var(--text); font-weight:550 }
+  .valuation-grid { display:grid; grid-template-columns:282px minmax(0,1fr); gap:14px }
+  .card { border:1px solid var(--line); background:linear-gradient(145deg,rgba(15,25,29,.96),rgba(9,16,19,.98)); padding:15px }
+  .control-card label { display:block; margin:13px 0 5px; color:var(--faint); font:9px var(--mono); letter-spacing:.13em; text-transform:uppercase }
+  .control-card label:first-child { margin-top:0 }
+  .control-card .val { float:right; color:var(--cyan); font-size:11px; letter-spacing:0 }
+  select { width:100%; padding:8px 9px; color:var(--text); border:1px solid var(--line-hi); background:var(--panel-2); font:11px var(--mono) }
+  input[type=range] { width:100%; accent-color:var(--green) }
+  .control-card button { width:100%; margin-top:10px; padding:9px 10px; border:1px solid var(--line-hi); background:var(--panel-2); color:var(--text); font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase }
+  .control-card button:hover { border-color:var(--green); color:var(--green) }
+  .control-card .danger:hover { border-color:var(--red); color:var(--red) }
+  .control-card button[disabled] { opacity:.55; cursor:wait }
+  .source-note { margin:10px 0 0; color:var(--faint); font:10px/1.45 var(--mono) }
+  .analysis-stack { min-width:0; display:grid; gap:12px }
+  .metric-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; border:1px solid var(--line); background:var(--line) }
+  .metric { min-width:0; padding:11px 13px; background:var(--panel) }
+  .metric span { display:block; color:var(--faint); font:9px var(--mono); letter-spacing:.1em; text-transform:uppercase }
+  .metric strong { display:block; margin-top:3px; overflow:hidden; color:var(--text); font:600 18px var(--mono); font-variant-numeric:tabular-nums; text-overflow:ellipsis }
+  .metric strong.green { color:var(--green) }
+  .metric strong.amber { color:var(--amber) }
+  .visual-grid { display:grid; grid-template-columns:minmax(380px,1.05fr) minmax(340px,.95fr); gap:12px }
+  .card-title { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:10px }
+  .card-title h3 { margin:0; font:10px var(--mono); letter-spacing:.12em; text-transform:uppercase }
+  .badge { display:inline-flex; align-items:center; gap:5px; color:var(--dim); font:9px var(--mono); letter-spacing:.06em; text-transform:uppercase }
+  .badge::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 9px rgba(0,240,138,.65) }
+  .badge.fallback::before { background:var(--amber); box-shadow:none }
+  .waterfall { display:grid; gap:1px; border:1px solid var(--line); background:var(--line) }
+  .wf-row { display:grid; grid-template-columns:minmax(0,1fr) 74px 112px; gap:10px; align-items:center; min-height:40px; padding:7px 10px; background:var(--panel) }
+  .wf-row .label { overflow:hidden; color:var(--dim); font-size:12px; text-overflow:ellipsis; white-space:nowrap }
+  .wf-row .op { color:var(--faint); text-align:right; font:10px var(--mono) }
+  .wf-row .number { text-align:right; font:12px var(--mono); font-variant-numeric:tabular-nums }
+  .wf-row.total { background:var(--panel-2); border-top:1px solid var(--line-hi) }
+  .wf-row.total .label { color:var(--text); font-weight:600 }
+  .wf-row.total .number { color:var(--green); font-size:15px; font-weight:700 }
+  .wf-row.fixed .number { color:var(--amber) }
+  .decision { min-height:54px; margin-top:10px; color:var(--dim); font-size:12px }
+  .decision strong { color:var(--text) }
+  .pill { display:inline-block; margin-right:7px; padding:3px 7px; border:1px solid; font:9px var(--mono); letter-spacing:.1em; text-transform:uppercase }
+  .pill.ok { color:var(--green); border-color:rgba(0,240,138,.45) }
+  .pill.off { color:var(--red); border-color:rgba(255,85,102,.48); background:rgba(255,85,102,.06) }
+  .chart-wrap { position:relative; min-height:246px }
+  #depthChart { display:block; width:100%; height:auto; min-height:220px; overflow:visible }
+  .chart-caption { display:flex; justify-content:space-between; gap:12px; margin-top:2px; color:var(--faint); font:9px var(--mono) }
+  .params-callout { display:none; border-left:2px solid var(--cyan); padding:8px 11px; background:rgba(41,217,255,.055); color:var(--dim); font-size:11px }
+  .params-callout.show { display:block }
+  .params-callout strong { color:var(--cyan) }
+
+  .backtest-hero { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:24px; margin:4px 0 18px; padding:22px; border:1px solid var(--line-hi); background:
+    linear-gradient(100deg,rgba(255,178,36,.075),transparent 42%,rgba(0,240,138,.065)) }
+  .result { text-align:center }
+  .result span { display:block; color:var(--faint); font:9px var(--mono); letter-spacing:.14em; text-transform:uppercase }
+  .result strong { display:block; margin-top:4px; font:700 clamp(27px,4vw,48px)/1 var(--mono); letter-spacing:-.05em }
+  .result.fixed strong { color:var(--amber) }
+  .result.ecv strong { color:var(--green) }
+  .arrow { color:var(--faint); font:30px var(--mono) }
+  .table-card { overflow-x:auto }
+  table { width:100%; border-collapse:collapse; font-size:12px }
+  th { padding:8px 10px; border-bottom:1px solid var(--line-hi); color:var(--faint); text-align:left; font:9px var(--mono); letter-spacing:.1em; text-transform:uppercase }
+  td { padding:9px 10px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums }
+  tr.highlight td { background:rgba(255,178,36,.055) }
+  td.bad { color:var(--amber) } td.good { color:var(--green) }
+  .truth-note { display:flex; gap:10px; align-items:flex-start; margin-top:12px; color:var(--dim); font-size:11px }
+  .truth-note b { flex:0 0 auto; padding:2px 6px; border:1px solid var(--amber); color:var(--amber); font:9px var(--mono); letter-spacing:.08em }
+  .agents { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
+  .agent { border:1px solid var(--line); background:var(--panel); padding:13px }
+  .agent b { display:block; margin-bottom:5px; color:var(--cyan); font:10px var(--mono); letter-spacing:.1em }
+  .agent span { color:var(--dim); font-size:11px }
+  footer { margin-top:34px; padding-top:13px; border-top:1px solid var(--line); color:var(--faint); font:10px var(--mono) }
+
+  .keyboard-bar { display:none }
+  body.present { overflow:hidden }
+  body.present .wrap { max-width:1500px; height:100vh; padding:12px 24px 52px }
+  body.present header { min-height:52px }
+  body.present .tagline, body.present .header-actions, body.present footer, body.present #agentsSection { display:none }
+  body.present .runtime { margin-left:auto }
+  body.present .story-nav { display:flex; align-items:center; justify-content:center; gap:6px; height:34px }
+  body.present .story-nav button { width:8px; height:8px; padding:0; border:0; border-radius:50%; background:var(--line-hi) }
+  body.present .story-nav button.active { width:24px; border-radius:8px; background:var(--green) }
+  body.present .section { display:none; padding-top:12px }
+  body.present[data-step="0"] #valuationSection,
+  body.present[data-step="1"] #valuationSection,
+  body.present[data-step="2"] #backtestSection { display:block }
+  body.present .section-head { margin-bottom:10px }
+  body.present h2 { font-size:clamp(28px,3vw,44px) }
+  body.present .lead { font-size:clamp(13px,1.15vw,17px) }
+  body.present .control-card { display:none }
+  body.present .valuation-grid { grid-template-columns:1fr }
+  body.present .metric-strip { grid-template-columns:repeat(4,1fr) }
+  body.present .metric { padding:7px 12px }
+  body.present .metric strong { font-size:16px }
+  body.present .visual-grid { grid-template-columns:1fr 1fr }
+  body.present .card { padding:10px 12px }
+  body.present .card-title { margin-bottom:6px }
+  body.present .wf-row { min-height:32px; padding:5px 9px }
+  body.present .decision, body.present .params-callout { display:none }
+  body.present .chart-wrap { min-height:185px }
+  body.present #depthChart { min-height:185px; max-height:205px }
+  body.present .chart-caption { margin-top:-3px }
+  body.present .backtest-hero { margin-top:10px; padding:30px }
+  body.present .table-card { max-height:44vh }
+  body.present #backtest tbody tr:not(:first-child):not(.highlight) { display:none }
+  body.present .keyboard-bar { position:fixed; z-index:30; left:0; right:0; bottom:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    min-height:38px; padding:7px 20px; border-top:1px solid var(--line); background:rgba(5,9,11,.96); color:var(--faint); font:10px var(--mono) }
+  .keyboard-bar .center { color:var(--text); text-align:center }
+  .keyboard-bar .right { text-align:right }
+  .keyboard-bar .hot { color:var(--green) }
+
+  @media(max-width:900px) {
+    .tagline,.runtime { display:none }
+    .header-actions { margin-left:auto }
+    .section-head,.valuation-grid,.visual-grid { grid-template-columns:1fr }
+    .metric-strip { grid-template-columns:repeat(2,1fr) }
+    .agents { grid-template-columns:1fr }
+    body.present { overflow:auto }
+    body.present .wrap { height:auto; padding-inline:12px }
+    body.present .visual-grid { grid-template-columns:1fr }
+    body.present .keyboard-bar { grid-template-columns:1fr auto }
+    body.present .keyboard-bar .center { display:none }
+  }
+  @media(prefers-reduced-motion:no-preference) {
+    .section { animation:reveal .24s ease-out }
+    @keyframes reveal { from { opacity:.25; transform:translateY(5px) } to { opacity:1; transform:none } }
+  }
 </style>
 </head>
-<body>
+<body data-step="0">
+<div class="error" id="error" role="alert"></div>
 <div class="wrap">
   <header>
-    <h1>RWA SHIELD</h1>
-    <span class="tagline">Executable Collateral Value — ile USDC naprawdę odzyskamy, likwidując teraz</span>
-    <span class="state" id="state">…</span>
+    <div class="brand"><span class="shield">RS</span><h1>RWA SHIELD</h1></div>
+    <span class="tagline">Executable Collateral Value for tokenized equities on Solana</span>
+    <div class="runtime" id="runtime">loading local risk engine…</div>
+    <div class="header-actions">
+      <div class="segmented" aria-label="Parameter set">
+        <button id="priorsMode" type="button">Priors</button>
+        <button id="fittedMode" type="button">Fitted</button>
+      </div>
+      <button class="present-button" id="presentButton" type="button">Present <span class="key">P</span></button>
+    </div>
   </header>
 
-  <h2>Wycena pozycji</h2>
-  <div class="grid">
-    <div class="card">
-      <label>Aktywo</label>
-      <select id="symbol"><option>SPYx</option><option>QQQx</option><option>NVDAx</option></select>
+  <nav class="story-nav" aria-label="Presentation steps">
+    <button type="button" data-go="0" aria-label="Step 1: valuation"></button>
+    <button type="button" data-go="1" aria-label="Step 2: stress"></button>
+    <button type="button" data-go="2" aria-label="Step 3: backtest"></button>
+  </nav>
 
-      <label>Wielkość pozycji <span class="val" id="notionalV">$100 000</span></label>
-      <input type="range" id="notional" min="10000" max="1000000" step="10000" value="100000">
-
-      <label>Stan rynku bazowego</label>
-      <select id="session">
-        <option value="regular">sesja otwarta</option>
-        <option value="afterHours">po godzinach</option>
-        <option value="weekend">weekend</option>
-        <option value="holiday">święto giełdowe</option>
-      </select>
-
-      <label>Głębokość księgi <span class="val" id="depthV">$400 000</span></label>
-      <input type="range" id="depth" min="30000" max="1200000" step="10000" value="400000">
-
-      <button id="stress" class="danger">STRESS: weekend + cienka księga</button>
-      <button id="live">Pobierz realną trasę z Jupitera</button>
+  <section class="section" id="valuationSection">
+    <div class="section-head">
+      <div>
+        <span class="kicker" id="storyKicker">01 / PRICE → CASH</span>
+        <h2 id="storyTitle">Oracle price is not cash on liquidation.</h2>
+      </div>
+      <p class="lead" id="storyLead">A market price marks the asset. <strong>ECV measures how much USDC the pool can actually recover</strong> at this size, in this session, through available routes.</p>
     </div>
 
-    <div>
-      <div class="wf" id="wf"></div>
-      <p class="delta" id="delta"></p>
+    <div class="valuation-grid">
+      <aside class="card control-card" aria-label="Scenario controls">
+        <label for="symbol">Asset</label>
+        <select id="symbol"><option>SPYx</option><option>QQQx</option><option>NVDAx</option></select>
+
+        <label for="notional">Position size <span class="val" id="notionalV">$100,000</span></label>
+        <input type="range" id="notional" min="10000" max="1000000" step="10000" value="100000">
+
+        <label for="session">Underlying market</label>
+        <select id="session">
+          <option value="regular">regular session</option>
+          <option value="afterHours">after hours</option>
+          <option value="weekend">weekend</option>
+          <option value="holiday">market holiday</option>
+        </select>
+
+        <label for="depth">Routable depth <span class="val" id="depthV">$400,000</span></label>
+        <input type="range" id="depth" min="10000" max="1200000" step="10000" value="400000">
+
+        <button id="stress" class="danger" type="button">Run weekend stress <span class="key">→</span></button>
+        <button id="live" type="button">Probe Jupiter route</button>
+        <p class="source-note">Presentation mode stays on the deterministic offline path. A failed live probe falls back safely.</p>
+      </aside>
+
+      <div class="analysis-stack" id="analysis" aria-live="polite">
+        <div class="metric-strip">
+          <div class="metric"><span>Oracle mark</span><strong id="oracleMetric">—</strong></div>
+          <div class="metric"><span>Executable now</span><strong id="executableMetric">—</strong></div>
+          <div class="metric"><span>Max new borrow</span><strong class="green" id="borrowMetric">—</strong></div>
+          <div class="metric"><span>Borrow gate</span><strong id="gateMetric">—</strong></div>
+        </div>
+
+        <div class="visual-grid">
+          <div class="card">
+            <div class="card-title"><h3>Value waterfall</h3><span class="badge" id="quoteBadge">offline-safe</span></div>
+            <div class="waterfall" id="waterfall"></div>
+            <div class="decision" id="decision"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h3>Position size → price impact</h3><span class="badge" id="curveBadge">depth probe</span></div>
+            <div class="chart-wrap"><svg id="depthChart" viewBox="0 0 640 250" role="img" aria-label="Depth curve showing price impact by position size"></svg></div>
+            <div class="chart-caption"><span>Smaller position</span><span id="cutoffCaption">Credit cutoff —</span><span>Larger position</span></div>
+          </div>
+        </div>
+
+        <div class="params-callout" id="paramsCallout"></div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <h2>Backtest — ten sam portfel, dwie wyceny</h2>
-  <div class="card" style="overflow-x:auto">
-    <table id="bt"><thead><tr>
-      <th>Scenariusz</th><th>Zły dług — stałe 70% LTV</th><th>Zły dług — ECV</th><th>Uniknięto</th><th>Kredyt vs fixed</th>
-    </tr></thead><tbody></tbody></table>
-  </div>
+  <section class="section" id="backtestSection">
+    <div class="section-head">
+      <div>
+        <span class="kicker">03 / SAME OPPORTUNITY STREAM, TWO POLICIES</span>
+        <h2>The weekend tail is where fixed LTV breaks.</h2>
+      </div>
+      <p class="lead">On the current <strong>synthetic, in-sample 110-day stress replay</strong>, fixed 70% LTV under-recovers in the tail. ECV refuses that exposure before the pool owns it.</p>
+    </div>
+    <div class="backtest-hero" id="backtestHero">
+      <div class="result fixed"><span>Fixed 70% LTV bad debt</span><strong id="fixedTail">—</strong></div>
+      <div class="arrow">→</div>
+      <div class="result ecv"><span id="ecvTailLabel">ECV bad debt</span><strong id="ecvTail">—</strong></div>
+    </div>
+    <div class="card table-card">
+      <table id="backtest">
+        <thead><tr><th>Scenario</th><th>Fixed 70% bad debt</th><th>ECV bad debt</th><th>Bad debt avoided</th><th>Credit vs fixed</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="truth-note"><b>LIMIT</b><span>Synthetic, in-sample scenario replay—not historical or predictive performance. The tail keeps depth stressed across the window, so ECV reaches $0 bad debt by refusing new exposure; “credit vs fixed” is an upper-bound cost, not a production forecast.</span></div>
+  </section>
 
-  <h2>Agenci</h2>
-  <div class="agents" id="agents"></div>
+  <section class="section" id="agentsSection">
+    <div class="section-head">
+      <div><span class="kicker">CALIBRATION / ADVERSARIAL TESTING</span><h2>The model argues with itself.</h2></div>
+      <p class="lead">Declared parameter bounds let the calibrator fit the data while an adversary searches for conditions that break the policy.</p>
+    </div>
+    <div class="agents" id="agents"></div>
+  </section>
 
-  <footer>ECV = Oracle × Depth × Slippage × Session × Volatility &nbsp;|&nbsp; breaker bramkuje nowy kredyt, nie wycenę istniejącego zabezpieczenia</footer>
+  <footer>ECV = Oracle × Depth × Slippage × Session × Volatility &nbsp;·&nbsp; The breaker gates new borrowing; it never marks existing collateral to zero.</footer>
+</div>
+
+<div class="keyboard-bar" aria-hidden="true">
+  <span><span class="hot">← →</span> navigate · <span class="hot">F</span> priors/fitted</span>
+  <span class="center" id="stepLabel">1 / 3 · Oracle ≠ cash</span>
+  <span class="right"><span class="hot">Esc</span> exit</span>
 </div>
 
 <script>
-const $ = (id) => document.getElementById(id);
-const usd = (x) => '$' + Math.round(x).toLocaleString('pl-PL').replace(/ /g, ' ');
+  const $ = id => document.getElementById(id);
+  const query = new URLSearchParams(location.search);
+  const allowedSymbols = new Set(['SPYx', 'QQQx', 'NVDAx']);
+  const allowedSessions = new Set(['regular', 'afterHours', 'weekend', 'holiday']);
+  const hasScenarioInUrl = ['symbol','notional','session','depth'].some(key => query.has(key));
+  const app = {
+    step: clamp(Number(query.get('step') || 0), 0, 2),
+    presenting: query.get('present') === '1',
+    paramsMode: query.get('params') === 'priors' ? 'priors' : 'fitted',
+    fittedAvailable: true,
+    requestId: 0,
+    lastResult: null
+  };
+  const presets = {
+    baseline: { symbol:'SPYx', notional:100000, session:'regular', depth:400000 },
+    stress: { symbol:'SPYx', notional:250000, session:'weekend', depth:260000 }
+  };
+  const scenarioLabels = {
+    base:'Base market', weekend_gap:'Weekend gap −14% at reopen',
+    weekend_tail:'Tail: −22% weekend gap + thin book', depth_collapse:'Liquidity collapse (−70% depth)',
+    earnings_gap:'Single-stock earnings gap −18%', vol_spike:'Volatility spike (earnings)'
+  };
 
-async function loadState() {
-  const s = await (await fetch('/api/state')).json();
-  $('state').innerHTML = `sesja: <b>${s.session}</b> · do otwarcia ${s.hoursToReopen}h · parametry: ${s.paramsSource}`;
-  $('session').value = s.session;
-  refresh();
-}
+  hydrateControlsFromUrl();
+  setPresentation(app.presenting, false);
+  setStep(app.step, app.presenting && !hasScenarioInUrl);
+  bindEvents();
+  boot();
 
-async function refresh(live = false) {
-  const q = new URLSearchParams({
-    symbol: $('symbol').value, notional: $('notional').value,
-    session: $('session').value, depth: $('depth').value, live: live ? '1' : '0'
-  });
-  const r = await (await fetch('/api/ecv?' + q)).json();
+  async function boot() {
+    updateControlLabels();
+    updateModeButtons();
+    await loadState();
+    await Promise.all([refresh(), loadBacktest(), loadAgents()]);
+  }
 
-  const t = r.terms;
-  const rows = [
-    ['Wartość z oracla', '', r.oracleValue, ''],
-    [`Egzekucja na DEX (impact ${r.impactPct.toFixed(2)}%)`, `× ${(t.D * t.S).toFixed(3)}`, r.executableValue, ''],
-    [`Stan rynku bazowego (${r.session})`, `× ${t.M.toFixed(2)}`, r.executableValue * t.M, ''],
-    [`Haircut zmienności`, `× ${t.V.toFixed(3)}`, r.ecv, ''],
-    [`Bufor bezpieczeństwa`, `× ${(r.outputs.max_borrow / (r.ecv || 1)).toFixed(3)}`, r.outputs.max_borrow, 'total']
-  ];
-  $('wf').innerHTML = rows.map(([label, op, v, cls]) =>
-    `<div class="row ${cls}"><span>${label}</span><span class="op">${op}</span><span class="n">${usd(v)}</span></div>`
-  ).join('') +
-  `<div class="row fixed"><span>Dla porównania: stałe 70% LTV pożyczyłoby</span><span class="op"></span><span class="n">${usd(r.fixedLtvBorrow)}</span></div>`;
+  function hydrateControlsFromUrl() {
+    const symbol = query.get('symbol');
+    const session = query.get('session');
+    if (allowedSymbols.has(symbol)) $('symbol').value = symbol;
+    if (allowedSessions.has(session)) $('session').value = session;
+    $('notional').value = clamp(Number(query.get('notional') || 100000), 10000, 1000000);
+    $('depth').value = clamp(Number(query.get('depth') || 400000), 10000, 1200000);
+  }
 
-  const diff = r.fixedLtvBorrow - r.outputs.max_borrow;
-  $('delta').innerHTML = r.outputs.borrow_disabled
-    ? `<span class="pill off">BREAKER: ${r.outputs.breaker_reason}</span> Nowy kredyt wstrzymany. Istniejące pozycje dalej mają wycenę ${usd(r.executableValue)} — breaker nie zeruje zabezpieczenia.`
-    : `<span class="pill ok">KREDYT DOSTĘPNY</span> Różnica <b>${usd(diff)}</b> to dokładnie ta część pożyczki, którą w modelu ze stałym LTV pokrywa wspólna pula przy likwidacji. Trasa: ${r.route}. Premia za ryzyko: ${(r.outputs.risk_premium * 100).toFixed(2)}%.`;
-}
+  function bindEvents() {
+    ['symbol','notional','session','depth'].forEach(id => $(id).addEventListener('input', () => {
+      updateControlLabels();
+      syncUrl();
+      refresh();
+    }));
+    $('stress').addEventListener('click', () => {
+      applyPreset('stress');
+      if (app.presenting) setStep(1, false);
+      refresh();
+    });
+    $('live').addEventListener('click', () => refresh(true));
+    $('priorsMode').addEventListener('click', () => setParamsMode('priors'));
+    $('fittedMode').addEventListener('click', () => setParamsMode('fitted'));
+    $('presentButton').addEventListener('click', () => setPresentation(true, true));
+    document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => setStep(Number(button.dataset.go), true)));
+    document.addEventListener('keydown', event => {
+      const tag = document.activeElement?.tagName;
+      const editing = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+      if (event.key.toLowerCase() === 'p' && !editing) {
+        event.preventDefault();
+        if (app.presenting && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+        else setPresentation(!app.presenting, true);
+        return;
+      }
+      if (event.key.toLowerCase() === 'f' && !editing) {
+        event.preventDefault();
+        setParamsMode(app.paramsMode === 'priors' ? 'fitted' : 'priors');
+        return;
+      }
+      if (!app.presenting || editing) return;
+      if (['ArrowRight','PageDown',' '].includes(event.key)) {
+        event.preventDefault();
+        setStep(app.step + 1, true);
+      } else if (['ArrowLeft','PageUp'].includes(event.key)) {
+        event.preventDefault();
+        setStep(app.step - 1, true);
+      } else if (event.key === 'Escape') {
+        setPresentation(false, false);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        setStep(0, true);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        setStep(2, true);
+      } else if (/^[1-3]$/.test(event.key)) {
+        setStep(Number(event.key) - 1, true);
+      }
+    });
+  }
 
-async function loadBacktest() {
-  const rows = await (await fetch('/api/backtest')).json();
-  $('bt').querySelector('tbody').innerHTML = rows.map(r => `<tr>
-    <td>${r.label}</td>
-    <td class="red">${usd(r.fixedBadDebt)}</td>
-    <td class="good">${usd(r.ecvBadDebt)}</td>
-    <td class="good">${usd(r.avoided)}</td>
-    <td>${Math.round(r.lentRatio * 100)}%</td>
-  </tr>`).join('');
-}
+  async function loadState() {
+    try {
+      const state = await fetchJson(`/api/state?params=${app.paramsMode}`);
+      app.fittedAvailable = state.fittedAvailable;
+      if (!state.fittedAvailable && app.paramsMode === 'fitted') app.paramsMode = 'priors';
+      if (!query.has('session') && !app.presenting) $('session').value = state.session;
+      $('runtime').innerHTML = `market <b>${prettySession(state.session)}</b> · reopens ${state.hoursToReopen}h · <b>${state.paramsSource}</b>`;
+      updateModeButtons();
+    } catch (error) {
+      showError(`Local state unavailable: ${error.message}`);
+    }
+  }
 
-async function loadAgents() {
-  const a = await (await fetch('/api/agents')).json();
-  const cal = a.calibration;
-  $('agents').innerHTML = `
-    <div class="agent"><b>KALIBRATOR</b><span>${cal ? `dopasował ${Object.keys(cal.params).length} parametrów, ${cal.history.length} ulepszeń.<br>Zły dług po fit: ${usd(cal.score.badDebt)} · kredyt ${Math.round(cal.score.lentRatio * 100)}% vs fixed` : 'nie uruchomiony — npm run calibrate'}</span></div>
-    <div class="agent"><b>ADWERSARZ</b><span>${a.adversary ? `${a.adversary.breaks} warunków łamiących model. Najtańszy: ${a.adversary.cheapest}` : 'nie uruchomiony — npm run adversary'}</span></div>
-    <div class="agent"><b>MONITOR</b><span>Odpytuje głębokość i cenę, podnosi alert przy zmianie haircutu &gt; 1 pp — npm run monitor</span></div>
-    <div class="agent"><b>BACKTEST</b><span>${cal ? 'Cel: min utracony kredyt przy zerowym długu socjalizowanym' : '—'}</span></div>`;
-}
+  async function refresh(live = false) {
+    const requestId = ++app.requestId;
+    $('analysis').setAttribute('aria-busy', 'true');
+    if (live) { $('live').disabled = true; $('live').textContent = 'Probing Jupiter…'; }
+    const params = new URLSearchParams({
+      symbol:$('symbol').value, notional:$('notional').value,
+      session:$('session').value, depth:$('depth').value,
+      live:live ? '1' : '0', params:app.paramsMode
+    });
+    try {
+      const result = await fetchJson('/api/ecv?' + params);
+      if (requestId !== app.requestId) return;
+      app.lastResult = result;
+      app.paramsMode = result.paramsMode;
+      renderEcv(result);
+      updateModeButtons();
+      clearError();
+    } catch (error) {
+      if (requestId === app.requestId) showError(`ECV engine unavailable: ${error.message}`);
+    } finally {
+      if (requestId === app.requestId) $('analysis').removeAttribute('aria-busy');
+      if (live) { $('live').disabled = false; $('live').textContent = 'Probe Jupiter route'; }
+    }
+  }
 
-['symbol', 'notional', 'session', 'depth'].forEach(id => $(id).addEventListener('input', () => {
-  $('notionalV').textContent = usd($('notional').value);
-  $('depthV').textContent = usd($('depth').value);
-  refresh();
-}));
-$('stress').addEventListener('click', () => {
-  $('session').value = 'weekend'; $('depth').value = 260000; $('notional').value = 250000;
-  $('notionalV').textContent = usd(250000); $('depthV').textContent = usd(260000);
-  refresh();
-});
-$('live').addEventListener('click', () => refresh(true));
+  function renderEcv(result) {
+    const terms = result.terms;
+    $('oracleMetric').textContent = usd(result.oracleValue);
+    $('executableMetric').textContent = usd(result.executableValue);
+    $('borrowMetric').textContent = usd(result.outputs.max_borrow);
+    $('gateMetric').textContent = result.outputs.borrow_disabled ? 'CLOSED' : 'OPEN';
+    $('gateMetric').className = result.outputs.borrow_disabled ? 'amber' : 'green';
 
-loadState(); loadBacktest(); loadAgents();
+    const rows = [
+      ['Oracle value', '', result.oracleValue, ''],
+      [`DEX execution · ${result.impactPct.toFixed(2)}% impact`, `× ${(terms.D * terms.S).toFixed(3)}`, result.executableValue, ''],
+      [`Underlying market · ${prettySession(result.session)}`, `× ${terms.M.toFixed(2)}`, result.executableValue * terms.M, ''],
+      ['Volatility buffer', `× ${terms.V.toFixed(3)}`, result.ecv, ''],
+      ['Max new borrow', `× ${(result.outputs.max_borrow / (result.ecv || 1)).toFixed(3)}`, result.outputs.max_borrow, 'total'],
+      ['Fixed 70% LTV would lend', '', result.fixedLtvBorrow, 'fixed']
+    ];
+    $('waterfall').innerHTML = rows.map(([label,op,value,cls]) =>
+      `<div class="wf-row ${cls}"><span class="label">${escapeHtml(label)}</span><span class="op">${op}</span><span class="number">${usd(value)}</span></div>`
+    ).join('');
+
+    const difference = result.fixedLtvBorrow - result.outputs.max_borrow;
+    if (result.outputs.borrow_disabled) {
+      $('decision').innerHTML = `<span class="pill off">Breaker · ${escapeHtml(result.outputs.breaker_reason || 'risk limit')}</span><strong>New credit paused.</strong> Existing collateral still marks at ${usd(result.executableValue)}—the breaker does not create a liquidation cascade.`;
+    } else if (difference >= 0) {
+      $('decision').innerHTML = `<span class="pill ok">Credit available</span>ECV lends ${usd(difference)} less than fixed LTV under these conditions. Risk premium: <strong>${pct(result.outputs.risk_premium)}</strong>.`;
+    } else {
+      $('decision').innerHTML = `<span class="pill ok">Credit available</span>Measured execution supports ${usd(Math.abs(difference))} more credit than fixed LTV under these conditions. Risk premium: <strong>${pct(result.outputs.risk_premium)}</strong>.`;
+    }
+
+    const source = result.quoteSource === 'jupiter' ? 'live · Jupiter' : result.quoteSource === 'offline-fallback' ? 'offline fallback' : 'deterministic curve';
+    $('quoteBadge').textContent = source;
+    $('quoteBadge').classList.toggle('fallback', result.quoteSource !== 'jupiter');
+    $('curveBadge').textContent = result.quoteSource === 'jupiter' ? 'live depth probe' : 'offline depth probe';
+    $('curveBadge').classList.toggle('fallback', result.quoteSource !== 'jupiter');
+    $('runtime').innerHTML = `scenario <b>${prettySession(result.session)}</b> · <b>${result.paramsSource}</b> · ${source}`;
+    renderDepthChart(result.depthCurve || [], Number($('notional').value), result.limits.breakerImpactPct);
+
+    const fitted = result.paramsMode === 'fitted';
+    $('paramsCallout').classList.toggle('show', fitted);
+    $('paramsCallout').innerHTML = fitted
+      ? `<strong>Honest calibration result:</strong> on this synthetic series, the fitter sets the weekend modifier to 1.00 and volatility slope to 0. Protection here comes from measured depth, impact and the breaker—not from a hand-picked weekend haircut.`
+      : '';
+    updateStoryCopy(result);
+    syncUrl();
+  }
+
+  function renderDepthChart(curve, currentNotional, cutoff) {
+    const svg = $('depthChart');
+    const points = curve.filter(point => Number.isFinite(point.notionalUsd) && Number.isFinite(point.impactPct) && point.notionalUsd > 0);
+    if (!points.length) { svg.innerHTML = '<text x="20" y="40" fill="#8ba0a5" font-size="13">No routable depth returned</text>'; return; }
+    const width = 640, height = 250, left = 48, right = 16, top = 18, bottom = 38;
+    const minX = Math.min(...points.map(point => point.notionalUsd));
+    const maxX = Math.max(...points.map(point => point.notionalUsd));
+    const maxVisibleImpact = Math.max(8, cutoff * 1.6);
+    const logMin = Math.log10(minX), logMax = Math.log10(maxX);
+    const x = value => left + ((Math.log10(value) - logMin) / Math.max(.001, logMax - logMin)) * (width - left - right);
+    const y = value => top + (1 - Math.min(value, maxVisibleImpact) / maxVisibleImpact) * (height - top - bottom);
+    const path = points.map((point,index) => `${index ? 'L' : 'M'} ${x(point.notionalUsd).toFixed(1)} ${y(point.impactPct).toFixed(1)}`).join(' ');
+    const current = points.reduce((best,point) => Math.abs(point.notionalUsd-currentNotional) < Math.abs(best.notionalUsd-currentNotional) ? point : best, points[0]);
+    const cutoffY = y(cutoff);
+    const ticksY = [0, cutoff, maxVisibleImpact].map(value =>
+      `<g><line x1="${left}" x2="${width-right}" y1="${y(value)}" y2="${y(value)}" stroke="${value === cutoff ? '#ff5566' : '#203036'}" stroke-dasharray="${value === cutoff ? '5 5' : '0'}"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end" fill="${value === cutoff ? '#ff7785' : '#5d7277'}" font-family="ui-monospace,monospace" font-size="10">${value.toFixed(value % 1 ? 1 : 0)}%</text></g>`
+    ).join('');
+    const xTickValues = [...new Set([minX, 100000, maxX].filter(value => value >= minX && value <= maxX))];
+    const ticksX = xTickValues.map(value => `<text x="${x(value)}" y="${height-12}" text-anchor="middle" fill="#5d7277" font-family="ui-monospace,monospace" font-size="10">${compactUsd(value)}</text>`).join('');
+    const area = `${path} L ${x(points.at(-1).notionalUsd)} ${height-bottom} L ${x(points[0].notionalUsd)} ${height-bottom} Z`;
+    svg.innerHTML = `
+      <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#29d9ff" stop-opacity=".24"/><stop offset="1" stop-color="#29d9ff" stop-opacity="0"/></linearGradient></defs>
+      ${ticksY}<path d="${area}" fill="url(#areaFill)"/><path d="${path}" fill="none" stroke="#29d9ff" stroke-width="2.5"/>
+      <line x1="${x(currentNotional)}" x2="${x(currentNotional)}" y1="${top}" y2="${height-bottom}" stroke="#ffb224" stroke-dasharray="3 4"/>
+      <circle cx="${x(current.notionalUsd)}" cy="${y(current.impactPct)}" r="5" fill="#05090b" stroke="#ffb224" stroke-width="2"/>
+      <rect x="${Math.min(width-104, Math.max(left, x(current.notionalUsd)-45))}" y="${Math.max(top, y(current.impactPct)-28)}" width="90" height="20" rx="3" fill="#1e1b13" stroke="#8f6a24"/>
+      <text x="${Math.min(width-59, Math.max(left+45, x(current.notionalUsd)))}" y="${Math.max(top+14, y(current.impactPct)-14)}" text-anchor="middle" fill="#ffcf72" font-family="ui-monospace,monospace" font-size="10">${compactUsd(currentNotional)} · ${current.impactPct.toFixed(2)}%</text>
+      <text x="${width-right}" y="${cutoffY-7}" text-anchor="end" fill="#ff7785" font-family="ui-monospace,monospace" font-size="10">BREAKER</text>${ticksX}`;
+    const crossing = points.find(point => point.impactPct > cutoff);
+    $('cutoffCaption').textContent = crossing ? `Credit cutoff ≈ ${compactUsd(crossing.notionalUsd)}` : `Credit cutoff above ${compactUsd(maxX)}`;
+  }
+
+  async function loadBacktest() {
+    try {
+      const rows = await fetchJson(`/api/backtest?params=${app.paramsMode}`);
+      const tail = rows.find(row => row.id === 'weekend_tail');
+      $('fixedTail').textContent = tail ? compactUsd(tail.fixedBadDebt) : '—';
+      $('ecvTail').textContent = tail ? compactUsd(tail.ecvBadDebt) : '—';
+      $('ecvTailLabel').textContent = tail ? `ECV bad debt · ${tail.refusals} refusals · ${Math.round(tail.lentRatio*100)}% credit` : 'ECV bad debt';
+      $('backtest').querySelector('tbody').innerHTML = rows.map(row => `<tr class="${row.id === 'weekend_tail' ? 'highlight' : ''}">
+        <td>${escapeHtml(scenarioLabels[row.id] || row.label)}</td><td class="bad">${usd(row.fixedBadDebt)}</td>
+        <td class="good">${usd(row.ecvBadDebt)}</td><td class="good">${usd(row.avoided)}</td><td>${Math.round(row.lentRatio*100)}%</td></tr>`).join('');
+    } catch (error) {
+      showError(`Backtest unavailable: ${error.message}`);
+    }
+  }
+
+  async function loadAgents() {
+    try {
+      const agents = await fetchJson('/api/agents');
+      const calibration = agents.calibration;
+      $('agents').innerHTML = `
+        <div class="agent"><b>CALIBRATOR</b><span>${calibration ? `${Object.keys(calibration.params).length} parameter groups fitted · ${calibration.history.length} improvements · fitted bad debt ${usd(calibration.score.badDebt)}` : 'Not run yet — node src/agents/calibrator.mjs'}</span></div>
+        <div class="agent"><b>ADVERSARY</b><span>${agents.adversary ? `${agents.adversary.breaks} model-breaking conditions found · cheapest: ${escapeHtml(agents.adversary.cheapest)}` : 'Not run yet — node src/agents/adversary.mjs'}</span></div>
+        <div class="agent"><b>MONITOR</b><span>Polls price and depth, then alerts when a haircut moves by more than one percentage point.</span></div>`;
+    } catch (error) {
+      $('agents').innerHTML = '<div class="agent"><b>LOCAL AGENTS</b><span>Agent artifacts unavailable. The ECV engine remains deterministic and usable offline.</span></div>';
+    }
+  }
+
+  function setParamsMode(mode) {
+    if (mode === 'fitted' && !app.fittedAvailable) {
+      showError('Fitted parameters are not available. Run the calibrator first.');
+      return;
+    }
+    app.paramsMode = mode;
+    updateModeButtons();
+    syncUrl();
+    Promise.all([loadState(), refresh(), loadBacktest()]);
+  }
+
+  function setPresentation(enabled, requestFullscreen) {
+    app.presenting = enabled;
+    document.body.classList.toggle('present', enabled);
+    if (enabled && requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    if (!enabled && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    syncUrl();
+  }
+
+  function setStep(next, applyScenario) {
+    const step = clamp(next, 0, 2);
+    app.step = step;
+    document.body.dataset.step = String(step);
+    document.querySelectorAll('[data-go]').forEach(button => button.classList.toggle('active', Number(button.dataset.go) === step));
+    $('stepLabel').textContent = ['1 / 3 · Oracle ≠ cash','2 / 3 · Weekend + thin book','3 / 3 · synthetic stress replay'][step];
+    if (applyScenario && step === 0) { applyPreset('baseline'); refresh(); }
+    if (applyScenario && step === 1) { applyPreset('stress'); refresh(); }
+    if (step === 2) loadBacktest();
+    updateStoryCopy(app.lastResult);
+    syncUrl();
+  }
+
+  function applyPreset(name) {
+    const preset = presets[name];
+    Object.entries(preset).forEach(([key,value]) => { $(key).value = value; });
+    updateControlLabels();
+    syncUrl();
+  }
+
+  function updateStoryCopy(result) {
+    if (app.step === 1) {
+      $('storyKicker').textContent = '02 / WEEKEND + THIN BOOK';
+      $('storyTitle').textContent = 'When exit capacity disappears, the breaker closes.';
+      $('storyLead').innerHTML = result?.outputs.borrow_disabled
+        ? `At ${escapeHtml(prettySession(result.session))}, impact is ${result.impactPct.toFixed(2)}%—above the ${result.limits.breakerImpactPct.toFixed(2)}% breaker threshold. <strong>New borrow falls to zero while the existing mark remains ${compactUsd(result.executableValue)}.</strong> The fitted weekend modifier is 1.00; liquidity and the breaker do the work.`
+        : 'Stress the market state and routable depth. <strong>The credit gate reacts to execution risk, not just the oracle print.</strong>';
+    } else {
+      $('storyKicker').textContent = '01 / PRICE → CASH';
+      $('storyTitle').textContent = 'Oracle price is not cash on liquidation.';
+      $('storyLead').innerHTML = 'A market price marks the asset. <strong>ECV measures how much USDC the pool can actually recover</strong> at this size, in this session, through available routes.';
+    }
+  }
+
+  function updateModeButtons() {
+    $('priorsMode').classList.toggle('active', app.paramsMode === 'priors');
+    $('fittedMode').classList.toggle('active', app.paramsMode === 'fitted');
+    $('fittedMode').disabled = !app.fittedAvailable;
+  }
+
+  function updateControlLabels() {
+    $('notionalV').textContent = usd(Number($('notional').value));
+    $('depthV').textContent = usd(Number($('depth').value));
+  }
+
+  function syncUrl() {
+    const next = new URLSearchParams({
+      symbol:$('symbol').value, notional:$('notional').value,
+      session:$('session').value, depth:$('depth').value,
+      params:app.paramsMode, step:String(app.step)
+    });
+    if (app.presenting) next.set('present','1');
+    history.replaceState(null,'',location.pathname + '?' + next + location.hash);
+  }
+
+  async function fetchJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const payload = await response.json();
+    if (payload.error) throw new Error(payload.error);
+    return payload;
+  }
+
+  function showError(message) { $('error').textContent = message; $('error').classList.add('show'); }
+  function clearError() { $('error').classList.remove('show'); }
+  function usd(value) { return '$' + Math.round(Number(value) || 0).toLocaleString('en-US'); }
+  function compactUsd(value) {
+    const number = Number(value) || 0;
+    if (Math.abs(number) >= 1e6) return '$' + (number/1e6).toFixed(1) + 'M';
+    if (Math.abs(number) >= 1e3) return '$' + (number/1e3).toFixed(number >= 100000 ? 0 : 1) + 'K';
+    return usd(number);
+  }
+  function pct(value) { return (Number(value) * 100).toFixed(2) + '%'; }
+  function prettySession(value) { return ({regular:'regular',afterHours:'after hours',weekend:'weekend',holiday:'holiday'})[value] || value; }
+  function clamp(value,min,max) { return Math.max(min,Math.min(max,Number.isFinite(value) ? value : min)); }
+  function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 </script>
 </body>
 </html>

@@ -22,44 +22,70 @@ const ROOT = new URL('../../', import.meta.url);
 //  - data/params.fitted.json is what the calibrator concluded from the data.
 //    On the synthetic series it sets the weekend modifier to 1.0, i.e. the data
 //    does NOT justify our favourite term. We show that instead of hiding it.
-// PARAMS_MODE=fitted switches the pricing demo to the fitted set.
-let PARAMS = DEFAULT_PARAMS, paramsSource = 'priors (default)';
+// PARAMS_MODE=fitted changes the initial mode. Every API route also accepts
+// ?params=priors|fitted so the stage demo can switch without a server restart.
 let FITTED = null;
 try {
   FITTED = JSON.parse(await readFile(new URL('data/params.fitted.json', ROOT), 'utf8'));
-  if (process.env.PARAMS_MODE === 'fitted') { PARAMS = FITTED.params; paramsSource = `fitted ${FITTED.fittedAt?.slice(0, 16) ?? ''}`; }
 } catch { /* not calibrated yet */ }
+const INITIAL_PARAMS_MODE = process.env.PARAMS_MODE === 'fitted' && FITTED ? 'fitted' : 'priors';
 
 const SERIES = (await loadSeries('SPYx')) ?? generateSeries();
 const VOL = realizedVolAnnual(SERIES.map(x => x.p));
-let backtestCache = null;
+const backtestCache = new Map();
 
 const PRICES = { SPYx: 612.4, QQQx: 528.1, NVDAx: 184.9 };
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   try {
+    const selected = selectParams(url);
     if (url.pathname === '/api/state') return json(res, {
       session: sessionState(), hoursToReopen: hoursToReopen(),
-      paramsSource, params: PARAMS, assets: Object.keys(PRICES), vol: VOL
+      paramsSource: selected.source, paramsMode: selected.mode,
+      fittedAvailable: Boolean(FITTED), params: selected.params,
+      assets: Object.keys(PRICES), vol: VOL
     });
 
     if (url.pathname === '/api/ecv') {
-      const symbol = url.searchParams.get('symbol') || 'SPYx';
-      const notional = Number(url.searchParams.get('notional') || 100_000);
-      const state = url.searchParams.get('session') || sessionState();
-      const depthUsd = Number(url.searchParams.get('depth') || 400_000);
+      const requestedSymbol = url.searchParams.get('symbol') || 'SPYx';
+      const symbol = Object.hasOwn(PRICES, requestedSymbol) ? requestedSymbol : 'SPYx';
+      const notional = boundedNumber(url.searchParams.get('notional'), 100_000, 10_000, 1_000_000);
+      const requestedState = url.searchParams.get('session') || sessionState();
+      const state = ['regular', 'afterHours', 'weekend', 'holiday'].includes(requestedState) ? requestedState : sessionState();
+      const depthUsd = boundedNumber(url.searchParams.get('depth'), 400_000, 10_000, 1_200_000);
       const live = url.searchParams.get('live') === '1';
       const price = PRICES[symbol] ?? 100;
 
-      let impactPct, routableUsd, route;
+      let impactPct, routableUsd, route, curve;
+      let quoteSource = 'synthetic', liveError = null;
       if (live) {
-        const probe = await depthProbe({ mint: MINTS[symbol], unitPrice: price });
-        const hit = probe.curve.find(c => c.notionalUsd >= notional) || probe.curve.at(-1);
-        impactPct = hit?.impactPct ?? 100; routableUsd = probe.routableUsd; route = hit?.route ?? 'none';
-      } else {
+        try {
+          const probe = await withTimeout(
+            depthProbe({
+              mint: MINTS[symbol], unitPrice: price,
+              steps: [1, 2.5, 5, 10, 25, 50, 100]
+            }),
+            3_500,
+            'jupiter_timeout'
+          );
+          const usable = probe.curve.some(point => point.ok);
+          if (!usable) throw new Error(probe.curve.at(-1)?.error || 'no_route');
+          const hit = probe.curve.find(point => point.notionalUsd >= notional) || probe.curve.at(-1);
+          impactPct = hit?.impactPct ?? 100;
+          routableUsd = probe.routableUsd;
+          route = hit?.route ?? 'none';
+          curve = probe.curve;
+          quoteSource = 'jupiter';
+        } catch (error) {
+          liveError = String(error.message || error);
+        }
+      }
+      if (quoteSource !== 'jupiter') {
         const q = syntheticQuote({ notionalUsd: notional, depthUsd });
-        impactPct = q.impactPct; routableUsd = depthUsd; route = q.route;
+        impactPct = q.impactPct; routableUsd = depthUsd; route = 'offline:synthetic-curve';
+        curve = syntheticCurve({ notional, depthUsd });
+        if (live) quoteSource = 'offline-fallback';
       }
 
       const r = computeEcv({
@@ -67,23 +93,32 @@ const server = createServer(async (req, res) => {
         oraclePrice: price, twapPrice: price, priceAgeSec: 4,
         impactPct, routableUsd, sessionState: state, realizedVolAnnual: VOL,
         routeLabel: route
-      }, PARAMS);
-      return json(res, { ...r, session: state, impactPct, route, live });
+      }, selected.params);
+      return json(res, {
+        ...r, session: state, impactPct, route, live,
+        quoteSource, liveError, depthCurve: curve,
+        paramsMode: selected.mode, paramsSource: selected.source,
+        limits: {
+          maxImpactPct: selected.params.maxImpactPct,
+          breakerImpactPct: selected.params.maxImpactPct * 2,
+          depthFloorUsd: selected.params.depthFloorUsd
+        }
+      });
     }
 
     if (url.pathname === '/api/backtest') {
-      if (!backtestCache) {
-        backtestCache = SCENARIOS.map(sc => {
-          const r = runBacktest(sc.transform(SERIES), { params: PARAMS, depthStressFactor: sc.depthStressFactor, label: sc.id });
+      if (!backtestCache.has(selected.mode)) {
+        backtestCache.set(selected.mode, SCENARIOS.map(sc => {
+          const r = runBacktest(sc.transform(SERIES), { params: selected.params, depthStressFactor: sc.depthStressFactor, label: sc.id });
           return {
             id: sc.id, label: sc.label,
             fixedBadDebt: Math.round(r.fixed.badDebt), ecvBadDebt: Math.round(r.ecv.badDebt),
             avoided: Math.round(r.delta.badDebtAvoided), lentRatio: r.delta.lentRatio,
             offHours: r.ecv.offHoursLiquidations, refusals: r.ecv.refusals
           };
-        });
+        }));
       }
-      return json(res, backtestCache);
+      return json(res, backtestCache.get(selected.mode));
     }
 
     if (url.pathname === '/api/agents') {
@@ -106,8 +141,49 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`RWA Shield demo:  http://localhost:${PORT}`);
-  console.log(`parametry: ${paramsSource} | seria: ${SERIES.length}h | vol ${(VOL * 100).toFixed(1)}%`);
+  console.log(`parametry: ${selectParams().source} | seria: ${SERIES.length}h | vol ${(VOL * 100).toFixed(1)}%`);
 });
+
+function selectParams(url) {
+  const requested = url?.searchParams.get('params') || INITIAL_PARAMS_MODE;
+  if (requested === 'fitted' && FITTED?.params) {
+    return {
+      mode: 'fitted', params: FITTED.params,
+      source: `fitted ${FITTED.fittedAt?.slice(0, 16) ?? ''}`.trim()
+    };
+  }
+  return { mode: 'priors', params: DEFAULT_PARAMS, source: 'priors (default)' };
+}
+
+function syntheticCurve({ notional, depthUsd }) {
+  const relative = [0.1, 0.25, 0.5, 0.65, 0.8, 1, 1.5].map(multiplier => Math.round(depthUsd * multiplier));
+  const notionals = [...new Set([10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, notional, ...relative])]
+    .filter(value => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+  return notionals.map(notionalUsd => ({
+    notionalUsd,
+    ...syntheticQuote({ notionalUsd, depthUsd })
+  }));
+}
+
+function boundedNumber(raw, fallback, min, max) {
+  const value = Number(raw ?? fallback);
+  return Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+}
+
+async function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function json(res, obj) {
   res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
