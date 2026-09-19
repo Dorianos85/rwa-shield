@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="RWA Shield — Executable Collateral Value for tokenized equities on Solana. How much USDC you really recover if you liquidate now.">
+<title>RWA Shield — Executable Collateral Value</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #060A0C;
+    --panel: #0D1417;
+    --panel2: #111A1E;
+    --line: #1C2A2F;
+    --hi: #2A3E45;
+    --txt: #DCE8E8;
+    --dim: #7C9195;
+    --faint: #55686C;
+    --green: #00FF88;
+    --cyan: #00D4FF;
+    --amber: #FFB020;
+    --red: #FF4D5E;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
+  body {
+    background: var(--ink);
+    color: var(--txt);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 28px;
+    background: rgba(6, 10, 12, 0.82);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s;
+  }
+  .nav.scrolled { border-bottom-color: var(--line); }
+  .nav-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--green);
+    font-weight: 500;
+  }
+  .nav-links {
+    margin-left: auto;
+    display: flex;
+    gap: 22px;
+    list-style: none;
+  }
+  .nav-links a {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    text-decoration: none;
+  }
+  .nav-links a:hover { color: var(--txt); }
+  .nav-cta {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink) !important;
+    background: var(--green);
+    padding: 8px 14px;
+    border: none;
+    text-decoration: none !important;
+  }
+  .nav-cta:hover { opacity: 0.9; text-decoration: none !important; }
+
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 100px 28px 80px;
+  }
+  #canvas-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+  #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
+  .hero-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 0 auto 0 8vw;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 22px;
+  }
+  .eyebrow span { color: var(--green); }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: 1.15;
+    color: var(--txt);
+    margin-bottom: 8px;
+  }
+  h1 .accent { color: var(--green); }
+  .pl-sub {
+    font-size: 14px;
+    color: var(--dim);
+    margin-bottom: 28px;
+    font-weight: 400;
+  }
+  .value-prop {
+    font-size: clamp(18px, 2.4vw, 22px);
+    color: var(--txt);
+    font-weight: 400;
+    max-width: 34em;
+    margin-bottom: 36px;
+    line-height: 1.45;
+  }
+  .value-prop strong { color: var(--green); font-weight: 500; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+  .btn {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 14px 22px;
+    border: 1px solid var(--hi);
+    background: var(--panel2);
+    color: var(--txt);
+    cursor: pointer;
+    text-decoration: none !important;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .btn:hover { border-color: var(--green); color: var(--green); }
+  .btn-primary {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--ink) !important;
+  }
+  .btn-primary:hover { background: #33ff9e; border-color: #33ff9e; color: var(--ink) !important; }
+
+  section {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 88px 28px;
+  }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 14px;
+  }
+  .section-label::before { content: "› "; }
+  h2 {
+    font-family: var(--sans);
+    font-size: clamp(26px, 3.5vw, 34px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin-bottom: 20px;
+    max-width: 18em;
+  }
+  .lead {
+    font-size: 17px;
+    color: var(--dim);
+    max-width: 38em;
+    margin-bottom: 40px;
+  }
+
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 720px) {
+    .problem-grid { grid-template-columns: 1fr; }
+    .hero-inner { margin-left: 0; }
+    .nav-links { display: none; }
+  }
+  .card {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 28px 26px;
+  }
+  .card h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    color: var(--txt);
+  }
+  .card.bad h3 { color: var(--amber); }
+  .card.good h3 { color: var(--green); }
+  .card p { color: var(--dim); font-size: 15px; }
+
+  .formula {
+    border: 1px solid var(--line);
+    background: var(--panel2);
+    padding: 28px 26px;
+    margin-bottom: 28px;
+    font-family: var(--mono);
+    font-size: clamp(13px, 2vw, 15px);
+    letter-spacing: 0.02em;
+    color: var(--cyan);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .formula .op { color: var(--faint); }
+  .terms {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .term {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 18px 16px;
+  }
+  .term .sym {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .term .name {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 8px;
+  }
+  .term p { font-size: 13px; color: var(--dim); line-height: 1.45; }
+
+  .proof-box {
+    border: 1px solid var(--line);
+    background: linear-gradient(160deg, var(--panel) 0%, #0a1215 100%);
+    padding: 36px 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+  @media (max-width: 720px) {
+    .proof-box { grid-template-columns: 1fr; }
+  }
+  .proof-stat {
+    text-align: center;
+    padding: 20px;
+  }
+  .proof-stat .num {
+    font-family: var(--mono);
+    font-size: clamp(28px, 5vw, 40px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .proof-stat.bad .num { color: var(--amber); }
+  .proof-stat.good .num { color: var(--green); }
+  .proof-stat .lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .proof-copy h3 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 12px;
+  }
+  .proof-copy p { color: var(--dim); font-size: 15px; margin-bottom: 12px; }
+  .proof-copy p:last-child { margin-bottom: 0; }
+  .vs {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    letter-spacing: 0.14em;
+  }
+
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .stack-item {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 20px 18px;
+  }
+  .stack-item .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+  .stack-item h3 {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .stack-item p { font-size: 13px; color: var(--dim); }
+
+  .cta-block {
+    text-align: center;
+    padding: 100px 28px 80px;
+    border-top: 1px solid var(--line);
+    max-width: none;
+  }
+  .cta-block h2 { margin-left: auto; margin-right: auto; }
+  .cta-block .lead { margin-left: auto; margin-right: auto; }
+  .cta-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 980px;
+    margin: 0 auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+  }
+  footer .tags { display: flex; flex-wrap: wrap; gap: 10px; }
+  footer .tag-pill {
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    color: var(--dim);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--line);
+    max-width: 980px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <a class="nav-logo" href="https://github.com/Dorianos85/rwa-shield">RWA SHIELD</a>
+  <ul class="nav-links">
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#product">Product</a></li>
+    <li><a href="#proof">Proof</a></li>
+    <li><a href="#stack">Stack</a></li>
+  </ul>
+  <a class="nav-cta" href="#cta">GitHub</a>
+</nav>
+
+<header class="hero">
+  <div id="canvas-wrap" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <p class="eyebrow"><span>Solana</span> · RWA · Colosseum / Blockchain Hack Krakow</p>
+    <h1>RWA <span class="accent">SHIELD</span></h1>
+    <p class="pl-sub">Warstwa ryzyka i płynności dla tokenizowanych akcji na Solanie</p>
+    <p class="value-prop">
+      <strong>Executable Collateral Value</strong> — how much USDC you really recover
+      if you liquidate tokenized equity collateral <em>now</em>. Not another Aave.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#product">See ECV</a>
+      <a class="btn" href="#cta">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="divider"></div>
+
+<section id="problem">
+  <p class="section-label">Problem</p>
+  <h2>Oracle price is not cash in the pool.</h2>
+  <p class="lead">
+    Fixed-LTV lending on tokenized equities assumes you can exit at the mark.
+    On Solana, after hours and on weekends, the book is thin, the base market is closed,
+    and a liquidation that looks solvent on paper becomes bad debt in the pool.
+  </p>
+  <div class="problem-grid">
+    <div class="card bad">
+      <h3>Fixed LTV</h3>
+      <p>
+        Marks collateral at oracle × constant haircut. Ignores depth, session state,
+        and realized volatility. Weekend gaps turn “healthy” books into ~$4M losses
+        in our stress scenarios.
+      </p>
+    </div>
+    <div class="card good">
+      <h3>Executable value</h3>
+      <p>
+        Asks what USDC the route actually returns under current liquidity and calendar.
+        Refuses new credit when recovery would fail — without zeroing existing collateral marks.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="product">
+  <p class="section-label">Product</p>
+  <h2>ECV: collateral valued as recoverable USDC.</h2>
+  <p class="lead">
+    Six terms. Pure functions. Same model for live pricing, backtests, and the agent swarm.
+    The breaker gates new borrows — it never cascade-liquidates an open book.
+  </p>
+  <div class="formula" aria-label="ECV formula">
+    ECV <span class="op">=</span> P<sub>oracle</sub>
+    <span class="op">×</span> D(q)
+    <span class="op">×</span> S(q)
+    <span class="op">×</span> M(t)
+    <span class="op">×</span> V(σ)
+    &nbsp;&nbsp;<span class="op">·</span>&nbsp;&nbsp; B = breaker
+  </div>
+  <div class="terms">
+    <div class="term">
+      <div class="sym">P</div>
+      <div class="name">Oracle</div>
+      <p>Mark from the price feed — the starting point, not the answer.</p>
+    </div>
+    <div class="term">
+      <div class="sym">D</div>
+      <div class="name">Depth</div>
+      <p>How much of the book can absorb this size without collapsing.</p>
+    </div>
+    <div class="term">
+      <div class="sym">S</div>
+      <div class="name">Slippage</div>
+      <p>Route impact on Jupiter (or offline fallback) for this notional.</p>
+    </div>
+    <div class="term">
+      <div class="sym">M</div>
+      <div class="name">Session</div>
+      <p>NYSE open / after-hours / weekend / holiday — when the hedge exists.</p>
+    </div>
+    <div class="term">
+      <div class="sym">V</div>
+      <div class="name">Volatility</div>
+      <p>Haircut from realized vol so stress is priced before it hits.</p>
+    </div>
+    <div class="term">
+      <div class="sym">B</div>
+      <div class="name">Breaker</div>
+      <p>Stops new credit when feeds fail. Leaves open positions marked.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="proof">
+  <p class="section-label">Proof</p>
+  <h2>Same book. Two models. One weekend.</h2>
+  <p class="lead">
+    110 days of hourly synthetic SPYx-style data. Positions every 7h, 96h maturity,
+    session-aware liquidation delay. Highlight: weekend gap −22% + thin book.
+  </p>
+  <div class="proof-box">
+    <div>
+      <div class="proof-stat bad">
+        <div class="num">~$4.0M</div>
+        <div class="lbl">Bad debt · fixed 70% LTV</div>
+      </div>
+      <p class="vs">VS</p>
+      <div class="proof-stat good">
+        <div class="num">$0</div>
+        <div class="lbl">Bad debt · ECV</div>
+      </div>
+    </div>
+    <div class="proof-copy">
+      <h3>Weekend tail · gap −22% · thin book</h3>
+      <p>
+        Fixed LTV keeps lending into a closed market and a shallow route.
+        When the gap opens, the pool eats ~$3.98M of bad debt.
+      </p>
+      <p>
+        ECV refuses the credit beforehand. Calm markets: ECV lends ~the same as fixed LTV.
+        Stress: denial of credit — not loss of the pool.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="stack">
+  <p class="section-label">Stack</p>
+  <h2>Zero install. Node 20+. Offline-first.</h2>
+  <p class="lead">
+    Built for a pitch night where dependencies are risk. Pure ECV model, Jupiter adapter
+    with fallback, backtest engine, and a swarm of calibrator / adversary / monitor agents.
+  </p>
+  <div class="stack-grid">
+    <div class="stack-item">
+      <div class="tag">Chain</div>
+      <h3>Solana</h3>
+      <p>Tokenized equities, USDC settlement, Jupiter routes.</p>
+    </div>
+    <div class="stack-item">
+      <div class="tag">Model</div>
+      <h3>ECV core</h3>
+      <p>Pure functions in <code>src/ecv/</code> — fully testable, no I/O.</p>
+    </div>
+    <div class="stack-item">
+      <div class="tag">Data</div>
+      <h3>Session + vol</h3>
+      <p>NYSE calendar in UTC, realized volatility, depth-aware impact.</p>
+    </div>
+    <div class="stack-item">
+      <div class="tag">Agents</div>
+      <h3>Swarm</h3>
+      <p>Calibrator, adversary, monitor — parameters with hard bounds.</p>
+    </div>
+    <div class="stack-item">
+      <div class="tag">Demo</div>
+      <h3>Dashboard</h3>
+      <p>Waterfall pricing, stress, backtest table — single HTML + API.</p>
+    </div>
+    <div class="stack-item">
+      <div class="tag">Event</div>
+      <h3>Hack Krakow</h3>
+      <p>Colosseum / Blockchain Hack — risk layer, not another lending fork.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cta-block" id="cta">
+  <p class="section-label" style="text-align:center">Next</p>
+  <h2>Read the model. Run the backtest.</h2>
+  <p class="lead">
+    Clone the repo, start the demo API, and open the dashboard — no npm install required.
+  </p>
+  <div class="cta-actions">
+    <a class="btn btn-primary" href="https://github.com/Dorianos85/rwa-shield">GitHub repository</a>
+    <a class="btn" href="../README.md">README</a>
+    <a class="btn" href="../web/index.html">Live dashboard</a>
+  </div>
+</section>
+
+<footer>
+  <div>RWA Shield · Executable Collateral Value</div>
+  <div class="tags">
+    <span class="tag-pill">Solana</span>
+    <span class="tag-pill">RWA</span>
+    <span class="tag-pill">Colosseum</span>
+    <span class="tag-pill">Hack Krakow</span>
+  </div>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const wrap = document.getElementById('canvas-wrap');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(0, 0.15, 4.2);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+wrap.appendChild(renderer.domElement);
+
+const group = new THREE.Group();
+scene.add(group);
+
+// Soft shield: translucent icosahedron + wireframe torus
+const icoGeo = new THREE.IcosahedronGeometry(1.15, 1);
+const icoMat = new THREE.MeshBasicMaterial({
+  color: 0x00ff88,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.14
+});
+const ico = new THREE.Mesh(icoGeo, icoMat);
+group.add(ico);
+
+const torusGeo = new THREE.TorusGeometry(1.45, 0.04, 8, 64);
+const torusMat = new THREE.MeshBasicMaterial({
+  color: 0x00d4ff,
+  transparent: true,
+  opacity: 0.22
+});
+const torus = new THREE.Mesh(torusGeo, torusMat);
+torus.rotation.x = Math.PI / 2.4;
+group.add(torus);
+
+// Layered translucent planes (vault / shield suggestion)
+const planeGeo = new THREE.PlaneGeometry(2.4, 2.4);
+for (let i = 0; i < 3; i++) {
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x00ff88,
+    transparent: true,
+    opacity: 0.03 + i * 0.015,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const plane = new THREE.Mesh(planeGeo, mat);
+  plane.position.z = -0.35 + i * 0.28;
+  plane.rotation.y = (i - 1) * 0.12;
+  group.add(plane);
+}
+
+const ringGeo = new THREE.RingGeometry(1.7, 1.74, 64);
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0x2a3e45,
+  transparent: true,
+  opacity: 0.5,
+  side: THREE.DoubleSide
+});
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI / 2.6;
+group.add(ring);
+
+group.position.set(1.1, 0.1, 0);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false);
+}
+resize();
+window.addEventListener('resize', resize);
+
+let raf = 0;
+const clock = new THREE.Clock();
+
+function renderFrame() {
+  const t = clock.getElapsedTime();
+  if (!reduceMotion) {
+    group.rotation.y = t * 0.08;
+    group.rotation.x = Math.sin(t * 0.05) * 0.08;
+    torus.rotation.z = t * 0.12;
+    ico.rotation.y = -t * 0.05;
+  } else {
+    group.rotation.set(0.12, 0.4, 0);
+  }
+  renderer.render(scene, camera);
+}
+
+function loop() {
+  raf = requestAnimationFrame(loop);
+  renderFrame();
+}
+
+if (reduceMotion) {
+  renderFrame();
+} else {
+  loop();
+}
+
+// Pause when tab hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelAnimationFrame(raf);
+  } else if (!reduceMotion) {
+    clock.start();
+    loop();
+  }
+});
+
+// Nav scroll border
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 20);
+}, { passive: true });
+</script>
+</body>
+</html>
