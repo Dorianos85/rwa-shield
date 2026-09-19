@@ -37,3 +37,10 @@ Pliki są rozdzielone tak, żeby dwa agenty nie dotykały tego samego:
 | E — API/UI | `src/api/*`, `web/*` | `src/ecv/*`, `src/backtest/*` |
 
 Zadania szczegółowe: katalog `tasks/`.
+
+## Ludzie / collaboratorzy GitHub
+
+| GitHub | Rola | Zakres |
+|---|---|---|
+| `investiatech` | Rust / Anchor development | On-chain (po MVP demo), programy Solana. **Nie rusza** pięciu wyjść ECV w `src/ecv/model.mjs`. Czyta `AGENTS.md` przed pierwszym PR. Invite: write na `Dorianos85/rwa-shield`. |
+
