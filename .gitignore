@@ -1,0 +1,7 @@
+node_modules/
+data/params.fitted.json
+data/report.json
+data/adversary.json
+data/calibration.trace.json
+*.log
+.DS_Store

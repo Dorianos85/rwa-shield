@@ -1,0 +1,17 @@
+{
+  "name": "rwa-shield",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Executable Collateral Value - liquidation-aware risk layer for tokenized equities on Solana",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node src/api/server.mjs",
+    "test": "node --test src/**/*.test.mjs",
+    "backtest": "node src/backtest/run.mjs",
+    "calibrate": "node src/agents/calibrator.mjs",
+    "adversary": "node src/agents/adversary.mjs",
+    "monitor": "node src/agents/monitor.mjs",
+    "swarm": "node src/agents/swarm.mjs"
+  }
+}

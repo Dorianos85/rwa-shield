@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RWA Shield — ECV</title>
+<style>
+  :root{--ink:#060A0C;--panel:#0D1417;--panel2:#111A1E;--line:#1C2A2F;--hi:#2A3E45;
+        --txt:#DCE8E8;--dim:#7C9195;--faint:#55686C;--green:#00FF88;--cyan:#00D4FF;--amber:#FFB020;--red:#FF4D5E;
+        --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;--sans:"IBM Plex Sans",system-ui,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--txt);font-family:var(--sans);font-size:15px;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 70px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px}
+  h1{font-family:var(--mono);font-size:20px;letter-spacing:.06em;margin:0;color:var(--green)}
+  .tagline{color:var(--dim);font-size:13px}
+  .state{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .state b{color:var(--amber)}
+  h2{font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin:34px 0 12px;color:var(--txt)}
+  h2::before{content:"› ";color:var(--green)}
+  .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);background:var(--panel);padding:16px}
+  label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+  label:first-child{margin-top:0}
+  input[type=range]{width:100%;accent-color:var(--green)}
+  select,button{font-family:var(--mono);font-size:12px;background:var(--panel2);color:var(--txt);border:1px solid var(--hi);padding:8px 10px;width:100%}
+  button{cursor:pointer;margin-top:14px}
+  button:hover{border-color:var(--green);color:var(--green)}
+  button.danger:hover{border-color:var(--red);color:var(--red)}
+  .val{font-family:var(--mono);font-size:13px;color:var(--cyan);float:right}
+  .wf{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
+  .wf .row{background:var(--panel);display:grid;grid-template-columns:1fr 86px 132px;gap:12px;padding:11px 14px;align-items:baseline}
+  .wf .row .op{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
+  .wf .row .n{font-family:var(--mono);font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+  .wf .row.total{background:var(--panel2);border-top:1px solid var(--hi)}
+  .wf .row.total .n{color:var(--green);font-weight:700;font-size:16px}
+  .wf .row.fixed .n{color:var(--amber)}
+  .delta{margin-top:12px;font-size:13.5px;color:var(--dim)}
+  .delta b{color:var(--red)}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 7px;border:1px solid}
+  .pill.ok{color:var(--green);border-color:rgba(0,255,136,.45)}
+  .pill.off{color:var(--red);border-color:rgba(255,77,94,.45)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--hi);padding:8px 10px 8px 0}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  td.red{color:var(--amber)}td.good{color:var(--green)}
+  .agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .agent{border:1px solid var(--line);background:var(--panel);padding:13px 15px}
+  .agent b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--cyan);display:block;margin-bottom:5px}
+  .agent span{font-size:13px;color:var(--dim)}
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>RWA SHIELD</h1>
+    <span class="tagline">Executable Collateral Value — ile USDC naprawdę odzyskamy, likwidując teraz</span>
+    <span class="state" id="state">…</span>
+  </header>
+
+  <h2>Wycena pozycji</h2>
+  <div class="grid">
+    <div class="card">
+      <label>Aktywo</label>
+      <select id="symbol"><option>SPYx</option><option>QQQx</option><option>NVDAx</option></select>
+
+      <label>Wielkość pozycji <span class="val" id="notionalV">$100 000</span></label>
+      <input type="range" id="notional" min="10000" max="1000000" step="10000" value="100000">
+
+      <label>Stan rynku bazowego</label>
+      <select id="session">
+        <option value="regular">sesja otwarta</option>
+        <option value="afterHours">po godzinach</option>
+        <option value="weekend">weekend</option>
+        <option value="holiday">święto giełdowe</option>
+      </select>
+
+      <label>Głębokość księgi <span class="val" id="depthV">$400 000</span></label>
+      <input type="range" id="depth" min="30000" max="1200000" step="10000" value="400000">
+
+      <button id="stress" class="danger">STRESS: weekend + cienka księga</button>
+      <button id="live">Pobierz realną trasę z Jupitera</button>
+    </div>
+
+    <div>
+      <div class="wf" id="wf"></div>
+      <p class="delta" id="delta"></p>
+    </div>
+  </div>
+
+  <h2>Backtest — ten sam portfel, dwie wyceny</h2>
+  <div class="card" style="overflow-x:auto">
+    <table id="bt"><thead><tr>
+      <th>Scenariusz</th><th>Zły dług — stałe 70% LTV</th><th>Zły dług — ECV</th><th>Uniknięto</th><th>Kredyt vs fixed</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <h2>Agenci</h2>
+  <div class="agents" id="agents"></div>
+
+  <footer>ECV = Oracle × Depth × Slippage × Session × Volatility &nbsp;|&nbsp; breaker bramkuje nowy kredyt, nie wycenę istniejącego zabezpieczenia</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const usd = (x) => '$' + Math.round(x).toLocaleString('pl-PL').replace(/ /g, ' ');
+
+async function loadState() {
+  const s = await (await fetch('/api/state')).json();
+  $('state').innerHTML = `sesja: <b>${s.session}</b> · do otwarcia ${s.hoursToReopen}h · parametry: ${s.paramsSource}`;
+  $('session').value = s.session;
+  refresh();
+}
+
+async function refresh(live = false) {
+  const q = new URLSearchParams({
+    symbol: $('symbol').value, notional: $('notional').value,
+    session: $('session').value, depth: $('depth').value, live: live ? '1' : '0'
+  });
+  const r = await (await fetch('/api/ecv?' + q)).json();
+
+  const t = r.terms;
+  const rows = [
+    ['Wartość z oracla', '', r.oracleValue, ''],
+    [`Egzekucja na DEX (impact ${r.impactPct.toFixed(2)}%)`, `× ${(t.D * t.S).toFixed(3)}`, r.executableValue, ''],
+    [`Stan rynku bazowego (${r.session})`, `× ${t.M.toFixed(2)}`, r.executableValue * t.M, ''],
+    [`Haircut zmienności`, `× ${t.V.toFixed(3)}`, r.ecv, ''],
+    [`Bufor bezpieczeństwa`, `× ${(r.outputs.max_borrow / (r.ecv || 1)).toFixed(3)}`, r.outputs.max_borrow, 'total']
+  ];
+  $('wf').innerHTML = rows.map(([label, op, v, cls]) =>
+    `<div class="row ${cls}"><span>${label}</span><span class="op">${op}</span><span class="n">${usd(v)}</span></div>`
+  ).join('') +
+  `<div class="row fixed"><span>Dla porównania: stałe 70% LTV pożyczyłoby</span><span class="op"></span><span class="n">${usd(r.fixedLtvBorrow)}</span></div>`;
+
+  const diff = r.fixedLtvBorrow - r.outputs.max_borrow;
+  $('delta').innerHTML = r.outputs.borrow_disabled
+    ? `<span class="pill off">BREAKER: ${r.outputs.breaker_reason}</span> Nowy kredyt wstrzymany. Istniejące pozycje dalej mają wycenę ${usd(r.executableValue)} — breaker nie zeruje zabezpieczenia.`
+    : `<span class="pill ok">KREDYT DOSTĘPNY</span> Różnica <b>${usd(diff)}</b> to dokładnie ta część pożyczki, którą w modelu ze stałym LTV pokrywa wspólna pula przy likwidacji. Trasa: ${r.route}. Premia za ryzyko: ${(r.outputs.risk_premium * 100).toFixed(2)}%.`;
+}
+
+async function loadBacktest() {
+  const rows = await (await fetch('/api/backtest')).json();
+  $('bt').querySelector('tbody').innerHTML = rows.map(r => `<tr>
+    <td>${r.label}</td>
+    <td class="red">${usd(r.fixedBadDebt)}</td>
+    <td class="good">${usd(r.ecvBadDebt)}</td>
+    <td class="good">${usd(r.avoided)}</td>
+    <td>${Math.round(r.lentRatio * 100)}%</td>
+  </tr>`).join('');
+}
+
+async function loadAgents() {
+  const a = await (await fetch('/api/agents')).json();
+  const cal = a.calibration;
+  $('agents').innerHTML = `
+    <div class="agent"><b>KALIBRATOR</b><span>${cal ? `dopasował ${Object.keys(cal.params).length} parametrów, ${cal.history.length} ulepszeń.<br>Zły dług po fit: ${usd(cal.score.badDebt)} · kredyt ${Math.round(cal.score.lentRatio * 100)}% vs fixed` : 'nie uruchomiony — npm run calibrate'}</span></div>
+    <div class="agent"><b>ADWERSARZ</b><span>${a.adversary ? `${a.adversary.breaks} warunków łamiących model. Najtańszy: ${a.adversary.cheapest}` : 'nie uruchomiony — npm run adversary'}</span></div>
+    <div class="agent"><b>MONITOR</b><span>Odpytuje głębokość i cenę, podnosi alert przy zmianie haircutu &gt; 1 pp — npm run monitor</span></div>
+    <div class="agent"><b>BACKTEST</b><span>${cal ? 'Cel: min utracony kredyt przy zerowym długu socjalizowanym' : '—'}</span></div>`;
+}
+
+['symbol', 'notional', 'session', 'depth'].forEach(id => $(id).addEventListener('input', () => {
+  $('notionalV').textContent = usd($('notional').value);
+  $('depthV').textContent = usd($('depth').value);
+  refresh();
+}));
+$('stress').addEventListener('click', () => {
+  $('session').value = 'weekend'; $('depth').value = 260000; $('notional').value = 250000;
+  $('notionalV').textContent = usd(250000); $('depthV').textContent = usd(260000);
+  refresh();
+});
+$('live').addEventListener('click', () => refresh(true));
+
+loadState(); loadBacktest(); loadAgents();
+</script>
+</body>
+</html>
