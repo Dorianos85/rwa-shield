@@ -2,6 +2,8 @@
  * Price history. Real loader reads data/prices.<symbol>.json (hourly closes);
  * the generator produces a defensible series when we are offline, including the
  * thing that actually kills lending books: weekend gaps.
+ *
+ * For SPYx provenance see data/prices.SPYx.SOURCE.txt (may be a labeled proxy).
  */
 import { readFile } from 'node:fs/promises';
 
@@ -9,6 +11,21 @@ export async function loadSeries(symbol) {
   try {
     const raw = await readFile(new URL(`../../data/prices.${symbol}.json`, import.meta.url), 'utf8');
     return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Optional one-line label from data/prices.<symbol>.SOURCE.txt (first non-empty
+ * non-# line after the title). Used so callers can print honest provenance.
+ */
+export async function loadSeriesSource(symbol) {
+  try {
+    const raw = await readFile(new URL(`../../data/prices.${symbol}.SOURCE.txt`, import.meta.url), 'utf8');
+    const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const preferred = lines.find(s => /^(PROXY|Source):/i.test(s));
+    return preferred || lines.find(s => !s.startsWith('#') && !s.startsWith('data/')) || null;
   } catch {
     return null;
   }

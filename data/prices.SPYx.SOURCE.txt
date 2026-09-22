@@ -1,0 +1,17 @@
+PROXY: Yahoo Finance SPY ETF hourly USD (not on-chain SPYx DEX prints). Fetched 2026-09-22.
+
+data/prices.SPYx.json — series provenance (Task B)
+
+Format: [{"t": <unix_ms>, "p": <number>}, ...] hourly closes.
+
+Source: Yahoo Finance chart API
+  GET https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1h&range=3mo&includePrePost=true
+
+Why proxy: free public OHLCV for mint XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W
+(SPYx / USDC on Solana) was unavailable from this environment —
+GeckoTerminal and DexScreener returned HTTP 429; Birdeye required auth.
+SPYx tracks SPY 1:1 by design (Backed Finance xStocks); SPY hourly is the
+best honest free stand-in for ≥60 trading days of path risk.
+
+Points: ~1089 (~92 calendar days). Refresh by re-running the Yahoo fetch
+and overwriting this JSON; keep this SOURCE file in sync.
