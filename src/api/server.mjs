@@ -8,6 +8,7 @@ import { computeEcv } from '../ecv/model.mjs';
 import { DEFAULT_PARAMS } from '../ecv/params.mjs';
 import { sessionState, hoursToReopen } from '../data/session.mjs';
 import { syntheticQuote, depthProbe, MINTS } from '../data/jupiter.mjs';
+import { fetchLivePrice, OFFLINE_PRICES } from '../data/oracle.mjs';
 import { generateSeries, loadSeries } from '../data/prices.mjs';
 import { realizedVolAnnual } from '../data/volatility.mjs';
 import { runBacktest } from '../backtest/engine.mjs';
@@ -34,7 +35,7 @@ const SERIES = (await loadSeries('SPYx')) ?? generateSeries();
 const VOL = realizedVolAnnual(SERIES.map(x => x.p));
 const backtestCache = new Map();
 
-const PRICES = { SPYx: 612.4, QQQx: 528.1, NVDAx: 184.9 };
+const PRICES = { ...OFFLINE_PRICES };
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -55,7 +56,9 @@ const server = createServer(async (req, res) => {
       const state = ['regular', 'afterHours', 'weekend', 'holiday'].includes(requestedState) ? requestedState : sessionState();
       const depthUsd = boundedNumber(url.searchParams.get('depth'), 400_000, 10_000, 1_200_000);
       const live = url.searchParams.get('live') === '1';
-      const price = PRICES[symbol] ?? 100;
+      const livePrice = await fetchLivePrice({ mint: MINTS[symbol], symbol });
+      const price = livePrice.price || PRICES[symbol] || 100;
+      const priceAgeSec = livePrice.priceAgeSec;
 
       let impactPct, routableUsd, route, curve;
       let quoteSource = 'synthetic', liveError = null;
@@ -90,12 +93,13 @@ const server = createServer(async (req, res) => {
 
       const r = computeEcv({
         mint: MINTS[symbol] ?? symbol, symbol, qty: notional / price,
-        oraclePrice: price, twapPrice: price, priceAgeSec: 4,
+        oraclePrice: price, twapPrice: price, priceAgeSec,
         impactPct, routableUsd, sessionState: state, realizedVolAnnual: VOL,
         routeLabel: route
       }, selected.params);
       return json(res, {
         ...r, session: state, impactPct, route, live,
+        price, priceAgeSec, priceSource: livePrice.source,
         quoteSource, liveError, depthCurve: curve,
         paramsMode: selected.mode, paramsSource: selected.source,
         limits: {
