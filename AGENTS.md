@@ -9,6 +9,8 @@ Ten plik jest kontraktem. Przeczytaj go w całości przed pierwszą zmianą.
    `borrow_disabled`) to kontrakt z resztą systemu. Zmiana = zepsute demo.
 2. **Zero nowych zależności.** Node 20+, biblioteka standardowa. Jeśli uważasz, że
    potrzebujesz paczki — napisz dlaczego w PR i zaproponuj alternatywę bez niej.
+   Zasada dotyczy demo w Node: `src/*` i `web/*`. Katalog `onchain/` to osobny
+   workspace Cargo (Rust/Anchor, bez Node) — jego zależności definiuje `Cargo.toml`.
 3. **Każda zmiana w `src/ecv/` wymaga testu** w `src/ecv/model.test.mjs`.
    `node --test src/ecv/*.test.mjs` musi przechodzić przed commitem.
 4. **Nie wymyślasz liczb.** Każdy parametr ma trafić do `src/ecv/params.mjs`
@@ -35,6 +37,7 @@ Pliki są rozdzielone tak, żeby dwa agenty nie dotykały tego samego:
 | C — backtest | `src/backtest/*` | `src/ecv/*`, `web/*` |
 | D — agenci | `src/agents/*` | `src/ecv/*` |
 | E — API/UI | `src/api/*`, `web/*` | `src/ecv/*`, `src/backtest/*` |
+| G — on-chain | `onchain/*` | `src/*`, `web/*` |
 
 Zadania szczegółowe: katalog `tasks/`.
 

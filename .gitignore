@@ -5,3 +5,7 @@ data/adversary.json
 data/calibration.trace.json
 *.log
 .DS_Store
+# on-chain (Anchor) build artefacts
+onchain/target/
+onchain/.anchor/
+onchain/test-ledger/
