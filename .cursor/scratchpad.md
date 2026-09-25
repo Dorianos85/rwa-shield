@@ -121,7 +121,7 @@ Each task is one Executor step. Do not start the next until the user verifies.
   Success: `anchor test` green, 6 cases total; IDL lists `EcvRecord`; template `Counter`
   and `increment` removed.
 
-- [ ] **T6 — Encoding module (Rust)**
+- [x] **T6 — Encoding module (Rust)** — done 2026-09-25.
   `onchain/poster/src/encode.rs`: `encode(outputs) -> EncodedOutputs` and
   `decode(record) -> Outputs` (f64 ↔ u64 USDC 1e6, u16 bps, u8 reason enum, `[u8;32]` label).
   Fixture `onchain/poster/tests/fixtures/ecv_outputs.json` captured from `/api/ecv` for
@@ -177,9 +177,9 @@ Clarifications recorded:
 - [x] T1 Toolchain
 - [x] T2 Scaffold — Rust-only redo done 2026-09-25 (awaiting user verification)
 - [x] T3 Account layouts — committed by user as `92762e7`
-- [x] T4 initialize (uncommitted)
-- [x] T5 post_ecv (awaiting user verification; uncommitted)
-- [ ] T6 Encoding module
+- [x] T4 initialize — committed by user in `1783c30`
+- [x] T5 post_ecv — committed by user in `1783c30`
+- [x] T6 Encoding module (awaiting user verification; uncommitted)
 - [ ] T7 Poster
 - [ ] T8 Devnet + docs
 
@@ -283,12 +283,40 @@ and `package-lock.json` to the repo — scratchpad is tracked from here on).
   IDL: accounts `[Config, EcvRecord]`, instructions `[initialize, post_ecv]`, record seeds
   `["ecv", arg:mint]`, errors `[6000 Unauthorized]`, constants `[CONFIG_SEED, ECV_SEED]`.
 
+2026-09-25 — T4 + T5 committed by user as `1783c30`.
+
+2026-09-25 — T6 done (Executor). New crate `onchain/poster/` (lib only; bin comes in T7),
+added to workspace `members`.
+- `poster/Cargo.toml`: deps `ecv_oracle` (path, feature `no-entrypoint`), `serde`, `serde_json`.
+- `poster/src/encode.rs`: `Outputs` (serde mirror of API `outputs`, frozen names), `Encoded`
+  (post_ecv arg types), `encode()`, `decode(&EcvRecord)`, `EncodeError` {NotFinite, Negative,
+  Overflow, UnknownBreakerReason}; helpers `usd_to_units`/`units_to_usd`,
+  `fraction_to_bps`/`bps_to_fraction`, `breaker_reason_code`/`_name`, `encode_route`/
+  `decode_route`. Constants `USDC_SCALE`, `BPS_SCALE`, `ROUTE_LEN`, `BREAKER_*` (0..3).
+  Route truncation respects UTF-8 char boundaries; unknown on-chain codes decode as
+  `unknown_<n>` instead of panicking.
+- Fixture `poster/tests/fixtures/ecv_outputs.json`: two cases captured from `/api/ecv`
+  (priors mode, no `data/params.fitted.json` on this machine): `regular_session_gate_open`
+  (max_borrow 68730.43, 242 bps, open) and `weekend_thin_book_breaker`
+  (`session=weekend&depth=60000&notional=250000` → impact 81.6%, max_borrow 0,
+  `impact_extreme`). Queries recorded in the file for re-capture.
+- Tests `poster/tests/encode_roundtrip.rs` (10): fixture round-trip within 1e-6 USD / 1 bp,
+  exact integer expectations for both cases, all 4 reasons + unknown, route pad / truncate /
+  UTF-8 boundary, negative / NaN / inf rejected, u16-bps and u64-USDC overflow rejected,
+  rounding.
+- Verified: `cargo test -p poster` 10/10; `cargo test --workspace` 18/18; `anchor build` OK
+  (host crate in workspace does not disturb the SBF build); `.so` 157 kB; no warnings.
+
 ## Executor's Feedback or Assistance Requests
 
-T4 + T5 complete and both uncommitted (T4 was never committed). Please verify
-(`cd onchain && anchor build && cargo test`) and commit — suggested single commit:
-"Onchain: initialize + post_ecv z testami LiteSVM, bo oracle ma publikować pięć wyjść ECV
-per mint ze stemplem Clock". Then confirm before T6 (Rust encoder + fixtures in `poster/`).
+T6 complete; please verify (`cd onchain && cargo test --workspace && anchor build`) and commit
+(suggested: "Onchain: enkoder ECV float→int z fixture z /api/ecv, bo poster musi
+deterministycznie mapować pięć wyjść na EcvRecord"). Then confirm before T7 (poster binary:
+`anchor-client` + `reqwest`, `GET /api/ecv` → `post_ecv` on localnet).
+
+Suggestion, not done (out of T6 scope): the `BREAKER_*` codes could live in the program's
+`constants.rs` as `#[constant]`s so they appear in the IDL for integrators; `poster` would
+then import them instead of defining its own. Say so if you want it in T7 or T8.
 
 ## Lessons
 
@@ -321,6 +349,9 @@ per mint ze stemplem Clock". Then confirm before T6 (Rust encoder + fixtures in 
 - `init_if_needed` needs `anchor-lang = { features = ["init-if-needed"] }`; without it the
   constraint is a compile error. Anchor's re-init warning does not apply here: every field is
   overwritten on each post, which is the intended semantics.
+- A host crate depending on the program crate must use `features = ["no-entrypoint"]`, or the
+  program's `entrypoint` symbol gets linked into the host binary. An `f64` inside an error enum
+  rules out `derive(Eq)` — use `PartialEq` and `matches!` in tests for variants with floats.
 - `anchor test -- <args>` exits 1 on this setup; run `cargo test -- --nocapture` directly
   from `onchain/` when you need test stdout.
 - Host `rust-toolchain.toml` does not affect `anchor build` (cargo-build-sbf uses the
