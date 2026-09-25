@@ -21,10 +21,11 @@ custom-panic = []
 
 
 [dependencies]
-anchor-lang = "1.2.0"
+anchor-lang = { version = "1.2.0", features = ["init-if-needed"] }
 
 [dev-dependencies]
 litesvm = "0.16.0"
+solana-clock = "3"
 solana-message = "4"
 solana-transaction = "4"
 solana-signer = "3.0.0"

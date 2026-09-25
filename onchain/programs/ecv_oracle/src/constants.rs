@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
 
+/// PDA seed for the single `Config` account: `["config"]`.
 #[constant]
-pub const COUNTER_SEED: &[u8] = b"counter";
+pub const CONFIG_SEED: &[u8] = b"config";
 
+/// PDA seed prefix for `EcvRecord`: `["ecv", mint]`.
 #[constant]
-pub const HELLO_WORLD_LAMPORTS: u64 = 1;
-
-#[constant]
-pub const MAX_COUNT: u64 = 10;
+pub const ECV_SEED: &[u8] = b"ecv";

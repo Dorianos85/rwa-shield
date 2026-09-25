@@ -1,13 +1,5 @@
 use anchor_lang::prelude::*;
 
-/// Template leftover. Removed in T5 together with `increment`.
-#[account]
-#[derive(InitSpace)]
-pub struct Counter {
-    pub count: u64,
-    pub authority: Pubkey,
-}
-
 /// Oracle configuration. One per deployment, PDA seeds `["config"]`.
 ///
 /// The oracle only PUBLISHES; it never enforces. `max_staleness_sec` is the

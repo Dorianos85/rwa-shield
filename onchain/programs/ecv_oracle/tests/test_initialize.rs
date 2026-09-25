@@ -1,78 +1,51 @@
+mod common;
 
 use {
-    anchor_lang::{
-        prelude::Pubkey,
-        solana_program::{instruction::Instruction, system_program},
-        AccountDeserialize, InstructionData, ToAccountMetas,
-    },
-    litesvm::LiteSVM,
-    solana_keypair::Keypair,
-    solana_message::{Message, VersionedMessage},
+    anchor_lang::Space,
+    common::*,
     solana_signer::Signer,
-    solana_transaction::versioned::VersionedTransaction,
 };
 
 #[test]
-fn test_initialize() {
-    let program_id = ecv_oracle::id();
-    let payer = Keypair::new();
-    let counter = Pubkey::find_program_address(
-        &[ecv_oracle::constants::COUNTER_SEED],
-        &program_id,
-    )
-    .0;
-    let mut svm = LiteSVM::new();
-    let bytes = include_bytes!(concat!(
-        env!("CARGO_TARGET_TMPDIR"),
-        "/../deploy/ecv_oracle.so"
-    ));
-    svm.add_program(program_id, bytes).unwrap();
-    svm.airdrop(&payer.pubkey(), 1_000_000_000).unwrap();
+fn initialize_creates_config_with_signer_as_authority() {
+    let mut env = setup();
+    let authority = funded_keypair(&mut env.svm);
 
-    let instruction = Instruction::new_with_bytes(
-        program_id,
-        &ecv_oracle::instruction::Initialize {}.data(),
-        ecv_oracle::accounts::Initialize {
-            payer: payer.pubkey(),
-            counter,
-            system_program: system_program::ID,
-        }
-        .to_account_metas(None),
+    send_initialize(&mut env, &authority, MAX_STALENESS_SEC).expect("initialize should succeed");
+
+    let account = env.svm.get_account(&env.config).expect("config account must exist");
+    assert_eq!(account.owner, env.program_id, "config must be owned by the program");
+    assert_eq!(
+        account.data.len(),
+        8 + ecv_oracle::state::Config::INIT_SPACE as usize,
+        "account size = discriminator + INIT_SPACE"
     );
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
-
-    let counter_account = svm.get_account(&counter).unwrap();
-    let mut data: &[u8] = &counter_account.data;
-    let counter_state = ecv_oracle::state::Counter::try_deserialize(&mut data).unwrap();
-    assert_eq!(counter_state.count, 0);
-    assert_eq!(counter_state.authority, payer.pubkey());
-
-    let instruction = Instruction::new_with_bytes(
-        program_id,
-        &ecv_oracle::instruction::Increment {}.data(),
-        ecv_oracle::accounts::Increment {
-            counter,
-            authority: payer.pubkey(),
-        }
-        .to_account_metas(None),
+    let state = read_config(&env);
+    assert_eq!(state.authority, authority.pubkey());
+    assert_eq!(state.max_staleness_sec, MAX_STALENESS_SEC);
+    assert_eq!(
+        state.bump,
+        config_pda(&env.program_id).1,
+        "stored bump must be the canonical one"
     );
+}
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
+#[test]
+fn initialize_twice_fails() {
+    let mut env = setup();
+    let first = funded_keypair(&mut env.svm);
+    let second = funded_keypair(&mut env.svm);
 
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
+    send_initialize(&mut env, &first, MAX_STALENESS_SEC).unwrap();
 
-    let counter_account = svm.get_account(&counter).unwrap();
-    let mut data: &[u8] = &counter_account.data;
-    let counter_state = ecv_oracle::state::Counter::try_deserialize(&mut data).unwrap();
-    assert_eq!(counter_state.count, 1);
-    assert_eq!(counter_state.authority, payer.pubkey());
+    // Different signer => different tx bytes, so this is rejected by the
+    // program's `init` constraint, not by the duplicate-transaction filter.
+    let err = send_initialize(&mut env, &second, 60).expect_err("second initialize must fail");
+    println!("second initialize rejected with: {err}");
+
+    // Original config is untouched.
+    let state = read_config(&env);
+    assert_eq!(state.authority, first.pubkey());
+    assert_eq!(state.max_staleness_sec, MAX_STALENESS_SEC);
 }

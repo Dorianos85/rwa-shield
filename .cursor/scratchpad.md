@@ -108,12 +108,12 @@ Each task is one Executor step. Do not start the next until the user verifies.
   IDL listing deferred: Anchor only emits account types referenced by an instruction, so
   `Config` appears in the IDL at T4 and `EcvRecord` at T5 (added to those criteria).
 
-- [ ] **T4 — `initialize`**
+- [x] **T4 — `initialize`** — done 2026-09-25.
   Instruction + LiteSVM Rust tests: creates `Config`, `authority == payer`,
   `max_staleness_sec == 30`; second call fails (already initialized).
   Success: `anchor test` (LiteSVM) green for these two cases; IDL lists `Config`.
 
-- [ ] **T5 — `post_ecv`**
+- [x] **T5 — `post_ecv`** — done 2026-09-25.
   Instruction + LiteSVM Rust tests: (1) first post creates record with all fields as passed;
   with the SVM clock warped, `posted_at`/`posted_slot` equal the warped values exactly;
   (2) second post overwrites same PDA, `posted_slot` non-decreasing; (3) signer ≠ authority →
@@ -176,9 +176,9 @@ Clarifications recorded:
 - [x] T0 Decisions
 - [x] T1 Toolchain
 - [x] T2 Scaffold — Rust-only redo done 2026-09-25 (awaiting user verification)
-- [x] T3 Account layouts (awaiting user verification)
-- [ ] T4 initialize
-- [ ] T5 post_ecv
+- [x] T3 Account layouts — committed by user as `92762e7`
+- [x] T4 initialize (uncommitted)
+- [x] T5 post_ecv (awaiting user verification; uncommitted)
 - [ ] T6 Encoding module
 - [ ] T7 Poster
 - [ ] T8 Devnet + docs
@@ -243,12 +243,52 @@ Devnet airdrop skipped (decision 3: localnet first). Success criteria adjusted a
 - Verified: `anchor build` OK; `anchor test` → 2 layout tests + template test pass.
 - IDL still lists only `Counter` — expected (see T3 note); criterion moved to T4/T5.
 
+2026-09-25 — T3 committed by user as `92762e7 ecv storage` (also added `.cursor/scratchpad.md`
+and `package-lock.json` to the repo — scratchpad is tracked from here on).
+
+2026-09-25 — T4 done (Executor). Files: `constants.rs`, `instructions/initialize.rs`, `lib.rs`,
+`tests/test_initialize.rs`.
+- `CONFIG_SEED = b"config"` added (`#[constant]`, exported in IDL). `HELLO_WORLD_LAMPORTS`
+  removed (only the old initialize used it). `COUNTER_SEED`/`MAX_COUNT` stay until T5.
+- `initialize(max_staleness_sec: u32)`: `authority: Signer` (pays rent, becomes
+  `config.authority`), `config` = `init` PDA `[CONFIG_SEED]`, `space = 8 + Config::INIT_SPACE`,
+  bump stored from `ctx.bumps.config`. Value comes from the caller (params.mjs), no literal.
+- Tests (LiteSVM): `initialize_creates_config_with_signer_as_authority` (owner, size,
+  authority, staleness, canonical bump) and `initialize_twice_fails` (different signer so the
+  tx bytes differ; rejected with System `Custom(0)` = AccountAlreadyInUse; original untouched).
+  Template `test_initialize` (counter + increment) replaced.
+- Verified: `anchor build` OK; `cargo test` → 2 layout + 2 initialize tests pass; IDL:
+  `accounts: [Config, Counter]`, `initialize.args = [max_staleness_sec: u32]`, `config` PDA
+  seeds resolvable.
+
+2026-09-25 — T5 done (Executor). Program is now exactly the frozen design; template gone.
+- `Cargo.toml`: `anchor-lang` feature `init-if-needed`; dev-dep `solana-clock = "3"` (same
+  version litesvm and anchor resolve to, so `Clock` is one type).
+- `constants.rs`: `CONFIG_SEED`, `ECV_SEED = b"ecv"`; counter constants removed.
+- `error.rs`: only `Unauthorized` (6000). `state.rs`: `Counter` removed.
+- `instructions/post_ecv.rs` (new), `increment.rs` deleted, `instructions.rs`/`lib.rs` updated.
+  `post_ecv(mint, max_borrow, collateral_cap, risk_premium_bps, borrow_disabled,
+  breaker_reason, liquidation_route)`; accounts: `authority: Signer(mut)`, `config`
+  (`seeds=[CONFIG_SEED], bump=config.bump, has_one=authority @ Unauthorized`), `record`
+  (`init_if_needed, payer=authority, seeds=[ECV_SEED, mint], bump`), `system_program`.
+  `mint` is an instruction arg (`#[instruction(mint)]`), not an account — devnet has no
+  xStocks mints. `posted_at`/`posted_slot` from `Clock::get()`.
+- Tests: shared `tests/common/mod.rs` (setup, PDAs, `send_initialize`, `send_post_ecv`,
+  `Outputs` mirror, `baseline_outputs()` from DEMO_RUNBOOK, `route()` label packer).
+  `test_initialize.rs` moved onto it. `test_post_ecv.rs`: (1) first post creates record,
+  all fields, clock warped → `posted_slot == 12345`, `posted_at == 1790000000` exactly;
+  (2) overwrite with breaker outputs, same PDA, slot non-decreasing, no second rent charge;
+  (3) intruder → `Custom(6000)`, no record created; (4) two mints → two PDAs, independent.
+- Verified: `anchor build` OK, 0 warnings; `cargo test` 8/8 (2 layout + 2 init + 4 post);
+  IDL: accounts `[Config, EcvRecord]`, instructions `[initialize, post_ecv]`, record seeds
+  `["ecv", arg:mint]`, errors `[6000 Unauthorized]`, constants `[CONFIG_SEED, ECV_SEED]`.
+
 ## Executor's Feedback or Assistance Requests
 
-T3 complete; please verify (`cd onchain && anchor build && anchor test`) and confirm before T4
-(`initialize` instruction for `Config` + LiteSVM tests).
-Observed: `.cursor/scratchpad.md` and `package-lock.json` are now staged (`A`) in git — not by
-me. Flagging so the next commit doesn't pick them up unintentionally.
+T4 + T5 complete and both uncommitted (T4 was never committed). Please verify
+(`cd onchain && anchor build && cargo test`) and commit — suggested single commit:
+"Onchain: initialize + post_ecv z testami LiteSVM, bo oracle ma publikować pięć wyjść ECV
+per mint ze stemplem Clock". Then confirm before T6 (Rust encoder + fixtures in `poster/`).
 
 ## Lessons
 
@@ -272,5 +312,16 @@ me. Flagging so the next commit doesn't pick them up unintentionally.
   (`maybe_uninit_write_slice`) and `solana-message`/`solana-transaction` **4.x** — the 3.x
   types in the template don't match `send_transaction`. Fix all three together; the on-chain
   crate deps (`anchor-lang`) are unaffected.
+- In LiteSVM tests, `INIT_SPACE` needs `use anchor_lang::Space` in scope. A "second call must
+  fail" test must use a different signer (or a new blockhash) — an identical tx is rejected by
+  the duplicate filter before the program runs, which would make the test pass vacuously.
+- LiteSVM `set_sysvar::<Clock>` lets a test pin `slot`/`unix_timestamp` and assert program
+  stamps exactly. `Clock` must be the same crate version litesvm uses (`solana-clock ~3.1`);
+  add it as an explicit dev-dep rather than relying on the anchor prelude re-export.
+- `init_if_needed` needs `anchor-lang = { features = ["init-if-needed"] }`; without it the
+  constraint is a compile error. Anchor's re-init warning does not apply here: every field is
+  overwritten on each post, which is the intended semantics.
+- `anchor test -- <args>` exits 1 on this setup; run `cargo test -- --nocapture` directly
+  from `onchain/` when you need test stdout.
 - Host `rust-toolchain.toml` does not affect `anchor build` (cargo-build-sbf uses the
   platform-tools compiler); it only governs `cargo test` and future host bins (poster).

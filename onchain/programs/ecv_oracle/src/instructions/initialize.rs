@@ -1,33 +1,38 @@
 use anchor_lang::prelude::*;
 
-use crate::{constants::*, state::Counter};
+use crate::{constants::CONFIG_SEED, state::Config};
 
+/// Creates the single `Config` PDA. Runs once per deployment: `init` makes a
+/// second call fail because the account already exists.
 #[derive(Accounts)]
 pub struct Initialize<'info> {
+    /// Pays rent and becomes the posting authority.
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub authority: Signer<'info>,
     #[account(
         init,
-        payer = payer,
-        space = 8 + Counter::INIT_SPACE,
-        seeds = [COUNTER_SEED],
+        payer = authority,
+        space = 8 + Config::INIT_SPACE,
+        seeds = [CONFIG_SEED],
         bump
     )]
-    pub counter: Account<'info, Counter>,
+    pub config: Account<'info, Config>,
     pub system_program: Program<'info, System>,
 }
 
-pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
-    ctx.accounts.counter.count = 0;
-    ctx.accounts.counter.authority = ctx.accounts.payer.key();
+/// `max_staleness_sec` is supplied by the caller (from `src/ecv/params.mjs`
+/// `maxStalenessSec`), not hard-coded here. The oracle publishes it; it does
+/// not enforce it.
+pub fn handle_initialize(ctx: Context<Initialize>, max_staleness_sec: u32) -> Result<()> {
+    let config = &mut ctx.accounts.config;
+    config.authority = ctx.accounts.authority.key();
+    config.max_staleness_sec = max_staleness_sec;
+    config.bump = ctx.bumps.config;
 
-    let cpi_accounts = anchor_lang::system_program::Transfer {
-        from: ctx.accounts.payer.to_account_info(),
-        to: ctx.accounts.counter.to_account_info(),
-    };
-    let cpi_ctx = CpiContext::new(anchor_lang::system_program::ID, cpi_accounts);
-    anchor_lang::system_program::transfer(cpi_ctx, HELLO_WORLD_LAMPORTS)?;
-
-    msg!("Hello, world! Counter initialized");
+    msg!(
+        "ecv_oracle: config initialized, authority={}, max_staleness_sec={}",
+        config.authority,
+        config.max_staleness_sec
+    );
     Ok(())
 }
