@@ -8,9 +8,23 @@ rust-version.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "poster"
+path = "src/main.rs"
+
 [dependencies]
 # Program crate for the on-chain types (EcvRecord layout is the spec).
 # `no-entrypoint` so the program's entrypoint symbol is not linked into a host binary.
 ecv_oracle = { path = "../programs/ecv_oracle", features = ["no-entrypoint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Client side: build/sign/send `post_ecv`, read the record back.
+anchor-client = "1.2.0"
+solana-keypair = "3"
+solana-signer = "3"
+solana-commitment-config = "3"
+anyhow = "1"
+# HTTP GET against the demo API (`node src/api/server.mjs`). Local http only,
+# but rustls keeps the build independent of system OpenSSL.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }

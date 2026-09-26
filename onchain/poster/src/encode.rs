@@ -11,18 +11,17 @@ use ecv_oracle::state::EcvRecord;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+// Reason codes are owned by the program and exported in its IDL.
+pub use ecv_oracle::constants::{
+    BREAKER_DEPTH_FLOOR, BREAKER_IMPACT_EXTREME, BREAKER_NONE, BREAKER_STALE_PRICE,
+};
+
 /// USDC base units per dollar.
 pub const USDC_SCALE: f64 = 1_000_000.0;
 /// Basis points per unit.
 pub const BPS_SCALE: f64 = 10_000.0;
 /// Fixed width of `EcvRecord.liquidation_route`.
 pub const ROUTE_LEN: usize = 32;
-
-/// `breaker_reason` codes. Mirrors `breakerTerm()` in `src/ecv/model.mjs`.
-pub const BREAKER_NONE: u8 = 0;
-pub const BREAKER_STALE_PRICE: u8 = 1;
-pub const BREAKER_DEPTH_FLOOR: u8 = 2;
-pub const BREAKER_IMPACT_EXTREME: u8 = 3;
 
 /// The `outputs` object exactly as `/api/ecv` returns it. Field names are the
 /// frozen contract from `src/ecv/model.mjs` - do not rename.
@@ -90,6 +89,38 @@ pub fn decode(r: &EcvRecord) -> Outputs {
         borrow_disabled: r.borrow_disabled,
         breaker_reason: breaker_reason_name(r.breaker_reason),
     }
+}
+
+/// Tolerances a round trip must meet: one USDC base unit, one basis point.
+pub const USD_TOLERANCE: f64 = 1.0 / USDC_SCALE;
+pub const BPS_TOLERANCE: f64 = 1.0 / BPS_SCALE;
+
+/// Field-by-field comparison of what the API said vs. what the chain holds.
+/// Empty result = match. Used by the poster to verify its own post.
+pub fn diff_outputs(api: &Outputs, chain: &Outputs) -> Vec<String> {
+    let mut d = Vec::new();
+    let near = |a: f64, b: f64, tol: f64| (a - b).abs() <= tol;
+    if !near(api.max_borrow, chain.max_borrow, USD_TOLERANCE) {
+        d.push(format!("max_borrow: api {} vs chain {}", api.max_borrow, chain.max_borrow));
+    }
+    if !near(api.collateral_cap, chain.collateral_cap, USD_TOLERANCE) {
+        d.push(format!("collateral_cap: api {} vs chain {}", api.collateral_cap, chain.collateral_cap));
+    }
+    if !near(api.risk_premium, chain.risk_premium, BPS_TOLERANCE) {
+        d.push(format!("risk_premium: api {} vs chain {}", api.risk_premium, chain.risk_premium));
+    }
+    if api.borrow_disabled != chain.borrow_disabled {
+        d.push(format!("borrow_disabled: api {} vs chain {}", api.borrow_disabled, chain.borrow_disabled));
+    }
+    if api.breaker_reason != chain.breaker_reason {
+        d.push(format!("breaker_reason: api {:?} vs chain {:?}", api.breaker_reason, chain.breaker_reason));
+    }
+    // The chain holds at most ROUTE_LEN bytes; compare against the truncated label.
+    let expected_route = decode_route(&encode_route(&api.liquidation_route));
+    if expected_route != chain.liquidation_route {
+        d.push(format!("liquidation_route: api {:?} vs chain {:?}", expected_route, chain.liquidation_route));
+    }
+    d
 }
 
 pub fn usd_to_units(x: f64, field: &'static str) -> Result<u64, EncodeError> {

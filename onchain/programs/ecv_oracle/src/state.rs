@@ -22,7 +22,8 @@ pub struct Config {
 /// Field encoding (fixed here; the off-chain encoder must match):
 /// - `max_borrow`, `collateral_cap`: USDC base units, 6 decimals (`u64`)
 /// - `risk_premium_bps`: basis points, `0.02` -> `200`
-/// - `breaker_reason`: `0` none, `1` stale_price, `2` depth_floor, `3` impact_extreme
+/// - `breaker_reason`: `BREAKER_*` in `constants.rs` (`0` none, `1` stale_price,
+///   `2` depth_floor, `3` impact_extreme)
 /// - `liquidation_route`: UTF-8 label, truncated / zero-padded to 32 bytes
 ///
 /// `posted_at` / `posted_slot` are written by the program from `Clock`,

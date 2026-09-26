@@ -35,8 +35,22 @@ fn as_record(e: &Encoded) -> EcvRecord {
     }
 }
 
-const USD_TOLERANCE: f64 = 1e-6;
-const BPS_TOLERANCE: f64 = 1.0 / BPS_SCALE;
+#[test]
+fn diff_outputs_is_empty_on_round_trip_and_names_changed_fields() {
+    let fx = fixture();
+    for case in &fx.cases {
+        let back = decode(&as_record(&encode(&case.outputs).unwrap()));
+        assert!(diff_outputs(&case.outputs, &back).is_empty(), "{}", case.name);
+    }
+    let api = &fx.cases[0].outputs;
+    let mut tampered = api.clone();
+    tampered.max_borrow += 1.0;
+    tampered.borrow_disabled = !tampered.borrow_disabled;
+    let d = diff_outputs(api, &tampered);
+    assert_eq!(d.len(), 2, "{d:?}");
+    assert!(d[0].starts_with("max_borrow"));
+    assert!(d[1].starts_with("borrow_disabled"));
+}
 
 #[test]
 fn fixtures_round_trip_within_tolerance() {

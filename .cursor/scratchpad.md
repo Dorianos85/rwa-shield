@@ -130,8 +130,13 @@ Each task is one Executor step. Do not start the next until the user verifies.
   truncation at 32 bytes, negative/NaN rejected.
   Success: `cargo test -p poster` green.
 
-- [ ] **T7 — Poster (Rust bin)**
-  `onchain/poster/src/main.rs` using `anchor-client` + `reqwest` + `serde_json`:
+- [x] **T7 — Poster (Rust bin)** — done 2026-09-26.
+  7a. Move `BREAKER_NONE/STALE_PRICE/DEPTH_FLOOR/IMPACT_EXTREME` from `poster/src/encode.rs`
+  into `programs/ecv_oracle/src/constants.rs` as `#[constant] pub const ...: u8` (exported in
+  the IDL for integrators); `poster` imports them via `ecv_oracle::constants::*`. Update the
+  `EcvRecord.breaker_reason` doc comment to point at the constants. `anchor build` + IDL check
+  (`constants` lists the four) + `cargo test --workspace` still 18/18. No layout change.
+  7b. `onchain/poster/src/main.rs` using `anchor-client` + `reqwest` + `serde_json`:
   `GET /api/ecv?symbol=SPYx[&live=1]` from the running demo server → `encode` → `post_ecv`
   with mint pubkey matching `src/data/jupiter.mjs` `MINTS` (copied as constants; documented).
   Signs with `~/.config/solana/id.json`. Prints tx signature, PDA address, decoded record.
@@ -163,6 +168,10 @@ Each task is one Executor step. Do not start the next until the user verifies.
    JSON fixture captured from `/api/ecv` instead. Node remains needed only to run the demo
    server the poster reads from.
 
+2026-09-26 (user):
+5. `BREAKER_*` reason codes belong to the program (`constants.rs`, `#[constant]`), not to the
+   poster. Folded into T7 as step 7a.
+
 Clarifications recorded:
 - Poster goes through `GET /api/ecv` (not direct `computeEcv()` import) because input assembly
   (Jupiter probe + fallback, session, vol, params mode) lives inline in `src/api/server.mjs`
@@ -179,8 +188,8 @@ Clarifications recorded:
 - [x] T3 Account layouts — committed by user as `92762e7`
 - [x] T4 initialize — committed by user in `1783c30`
 - [x] T5 post_ecv — committed by user in `1783c30`
-- [x] T6 Encoding module (awaiting user verification; uncommitted)
-- [ ] T7 Poster
+- [x] T6 Encoding module — committed by user in `ebd1f69`
+- [x] T7 Poster (awaiting user verification; uncommitted)
 - [ ] T8 Devnet + docs
 
 ## Current Status / Progress Tracking
@@ -307,16 +316,57 @@ added to workspace `members`.
 - Verified: `cargo test -p poster` 10/10; `cargo test --workspace` 18/18; `anchor build` OK
   (host crate in workspace does not disturb the SBF build); `.so` 157 kB; no warnings.
 
+2026-09-25 — T6 committed by user as `ebd1f69`.
+
+2026-09-26 — `66ac21d` by **investiatech**: program id → `5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`,
+`Anchor.toml` → `[programs.devnet]`, `cluster = "devnet"` (the `[programs.localnet]` entry was
+removed, not added alongside). Program is **deployed on devnet** (157 008 bytes, upgrade
+authority `DtmWopzAxqkb9xtZFDjaCQ4zmhS3QHL4bJ2HesoqhE6P`, slot 504332522). The program keypair
+for `5nsd…` is on their machine only (correct — gitignored). Consequence for local work:
+`anchor deploy` on localnet is not possible here; use
+`solana-test-validator --bpf-program 5nsd… onchain/target/deploy/ecv_oracle.so` instead, which
+loads the `.so` at the declared id without the keypair. Not reverted; flagged to user.
+
+2026-09-26 — T7 done (Executor).
+- 7a: `BREAKER_NONE/STALE_PRICE/DEPTH_FLOOR/IMPACT_EXTREME` moved to
+  `programs/ecv_oracle/src/constants.rs` as `#[constant]` (now in IDL `constants`);
+  `poster::encode` re-exports them from `ecv_oracle::constants`. `EcvRecord.breaker_reason`
+  doc points at them. No layout change; 18/18 stayed green.
+- 7b: `poster/src/main.rs` (bin `poster`). Deps added: `anchor-client 1.2.0` (blocking),
+  `solana-keypair/signer/commitment-config 3`, `anyhow`, `reqwest 0.12` (blocking+json+rustls).
+  Flags: `--api` `--symbol` `--query` `--live` `--cluster` `--keypair` `--init`
+  `--max-staleness-sec` `--dry-run`. Flow: GET `/api/ecv` → `encode` → (init Config if
+  missing and `--init`) → refuse early if signer ≠ `config.authority` → `post_ecv` → read
+  record → `decode` → `diff_outputs` → `VERIFY OK` or exit 1 with per-field mismatches.
+  `MINTS` copied from `src/data/jupiter.mjs` (SPYx/QQQx/NVDAx) with the same VERIFY caveat.
+- `encode.rs`: added `diff_outputs(api, chain) -> Vec<String>`, `USD_TOLERANCE`,
+  `BPS_TOLERANCE`; +1 test (11 in poster).
+- E2E on localnet (validator with `--bpf-program`, demo API on 8787):
+  run 1 `--init --query session=regular` → initialize tx + post tx, record
+  `54jQEaQugDtKdXhX6XoBVtb3vYfD4tWGjpsmb6W4wMRw`, slot 7, VERIFY OK;
+  run 2 `session=weekend&depth=60000&notional=250000` → same PDA overwritten,
+  `borrow_disabled=true`, `impact_extreme`, slot 10, VERIFY OK;
+  run 3 intruder keypair → refused client-side before sending.
+  `solana account` shows 109 bytes owned by the program, 0.00165 SOL rent.
+- Verified: `anchor build` OK; `cargo build -p poster` 0 warnings; `cargo test --workspace`
+  19/19. Temp files removed; no stray processes.
+
 ## Executor's Feedback or Assistance Requests
 
-T6 complete; please verify (`cd onchain && cargo test --workspace && anchor build`) and commit
-(suggested: "Onchain: enkoder ECV float→int z fixture z /api/ecv, bo poster musi
-deterministycznie mapować pięć wyjść na EcvRecord"). Then confirm before T7 (poster binary:
-`anchor-client` + `reqwest`, `GET /api/ecv` → `post_ecv` on localnet).
+T7 complete; please verify and commit (suggested: "Onchain: poster Rust (anchor-client) —
+/api/ecv → post_ecv → weryfikacja odczytu, bo PoC musi domknąć pętlę model→łańcuch; kody
+breakera przeniesione do programu"). Then confirm before T8.
 
-Suggestion, not done (out of T6 scope): the `BREAKER_*` codes could live in the program's
-`constants.rs` as `#[constant]`s so they appear in the IDL for integrators; `poster` would
-then import them instead of defining its own. Say so if you want it in T7 or T8.
+T8 needs a decision because of `66ac21d`: the program is already on devnet under
+investiatech's upgrade authority. Options:
+(a) Poster runs against devnet with `--cluster devnet --init` from THIS machine's keypair
+    `7JdE2…` — becomes the oracle authority on devnet (needs ~0.01 SOL devnet airdrop).
+(b) investiatech runs `--init` with their key and is the authority; I only prepare README.
+Either way, the T8 explorer artefact is the two `post_ecv` txs on the same record PDA.
+
+2026-09-26 (user): `[programs.localnet]` re-added alongside `[programs.devnet]` in
+`Anchor.toml`, same program id `5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`. Provider
+cluster stays `devnet` (investiatech's default).
 
 ## Lessons
 
@@ -352,6 +402,14 @@ then import them instead of defining its own. Say so if you want it in T7 or T8.
 - A host crate depending on the program crate must use `features = ["no-entrypoint"]`, or the
   program's `entrypoint` symbol gets linked into the host binary. An `f64` inside an error enum
   rules out `derive(Eq)` — use `PartialEq` and `matches!` in tests for variants with floats.
+- Background processes started with `&` inside an agent shell command are reaped when the
+  command returns (`nohup` does not help; `solana-test-validator` only survives because it
+  forks). For multi-process E2E runs put validator + server + client in ONE script and `trap`
+  the cleanup.
+- Without the program keypair, `solana-test-validator --bpf-program <declared id> <so>` loads a
+  program at any address at genesis — the way to test locally when the deploy key lives
+  elsewhere. `anchor-client` `Client<C>` wants `Arc<Keypair>`; `Cluster::from_str` accepts
+  `localnet|devnet|<http url>`.
 - `anchor test -- <args>` exits 1 on this setup; run `cargo test -- --nocapture` directly
   from `onchain/` when you need test stdout.
 - Host `rust-toolchain.toml` does not affect `anchor build` (cargo-build-sbf uses the

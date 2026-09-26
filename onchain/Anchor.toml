@@ -6,6 +6,9 @@ skip_local_validator = true
 resolution = true
 skip-lint = false
 
+[programs.localnet]
+ecv_oracle = "5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc"
+
 [programs.devnet]
 ecv_oracle = "5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc"
 
