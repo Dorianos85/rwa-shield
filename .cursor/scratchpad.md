@@ -142,7 +142,7 @@ Each task is one Executor step. Do not start the next until the user verifies.
   Signs with `~/.config/solana/id.json`. Prints tx signature, PDA address, decoded record.
   Success: on localnet, fetching the PDA after run returns values equal to the API response.
 
-- [ ] **T8 — Devnet + docs**
+- [ ] **T8 — Devnet + docs** — README 2026-09-26; dwa posty na devnet **zablokowane** (0 SOL, faucet 429).
   `anchor deploy --provider.cluster devnet`. Run poster twice for SPYx against the same PDA:
   (1) default params → `borrow_disabled=false`; (2) `session=weekend&depth=60000&notional=250000`
   → breaker `impact_extreme`, `borrow_disabled=true`. This demonstrates PUBLISHING only —
@@ -189,8 +189,8 @@ Clarifications recorded:
 - [x] T4 initialize — committed by user in `1783c30`
 - [x] T5 post_ecv — committed by user in `1783c30`
 - [x] T6 Encoding module — committed by user in `ebd1f69`
-- [x] T7 Poster (awaiting user verification; uncommitted)
-- [ ] T8 Devnet + docs
+- [x] T7 Poster — committed by user in `cab9da4`
+- [ ] T8 Devnet + docs — README written; posts pending faucet
 
 ## Current Status / Progress Tracking
 
@@ -351,18 +351,18 @@ loads the `.so` at the declared id without the keypair. Not reverted; flagged to
 - Verified: `anchor build` OK; `cargo build -p poster` 0 warnings; `cargo test --workspace`
   19/19. Temp files removed; no stray processes.
 
+2026-09-26 — T8 partial (Executor). `onchain/README.md` (PL): adresy, PDA, encoding, trust,
+localnet (`--bpf-program`), devnet, poster. Program już na devnet (`5nsd…`), Config i
+EcvRecord SPYx **nie** istnieją. `anchor deploy` pominięty: upgrade authority to
+`DtmWopz…`, nie `7JdE2…`. Poster `--init --cluster devnet` nie ruszył: signer ma 0 SOL,
+`requestAirdrop` 429.
+
 ## Executor's Feedback or Assistance Requests
 
-T7 complete; please verify and commit (suggested: "Onchain: poster Rust (anchor-client) —
-/api/ecv → post_ecv → weryfikacja odczytu, bo PoC musi domknąć pętlę model→łańcuch; kody
-breakera przeniesione do programu"). Then confirm before T8.
-
-T8 needs a decision because of `66ac21d`: the program is already on devnet under
-investiatech's upgrade authority. Options:
-(a) Poster runs against devnet with `--cluster devnet --init` from THIS machine's keypair
-    `7JdE2…` — becomes the oracle authority on devnet (needs ~0.01 SOL devnet airdrop).
-(b) investiatech runs `--init` with their key and is the authority; I only prepare README.
-Either way, the T8 explorer artefact is the two `post_ecv` txs on the same record PDA.
+T8 docs done (uncommitted `onchain/README.md`). Explorer artefact (false→true na `54jQEa…`)
+czeka na ~0.01 SOL devnet na `7JdE2aji83yFmsn9QNtbBYJ9RTpiP3FjLmpnuz2SimKR`. Po doładowaniu
+na https://faucet.solana.com powiedz „post T8” — odpalę `--init` + dwa posty i wpiszę
+sygnatury do README. Pierwszy `--init` ustawi oracle authority na ten signer.
 
 2026-09-26 (user): `[programs.localnet]` re-added alongside `[programs.devnet]` in
 `Anchor.toml`, same program id `5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`. Provider
