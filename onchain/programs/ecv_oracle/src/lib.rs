@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("2t815MdALeVCAKYbkpVFyjNfoF3U7PKLaAirNbNT73LL");
+declare_id!("5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc");
 
 #[program]
 pub mod ecv_oracle {
