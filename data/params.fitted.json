@@ -1,0 +1,81 @@
+{
+  "fittedAt": "2026-09-27T22:37:16.101Z",
+  "method": "coordinate descent over declared bounds, scored on all stress scenarios",
+  "objective": "min lostCredit s.t. badDebt <= 5bps of lentFixed (violation x500)",
+  "passes": 2,
+  "score": {
+    "loss": 44719593.63999999,
+    "badDebt": 0,
+    "tolerance": 30660,
+    "violation": 0,
+    "lostCredit": 44719593.63999999,
+    "lentEcv": 16600406.360000005,
+    "lentFixed": 61320000,
+    "refusals": 643,
+    "lentRatio": 0.27071765101108947
+  },
+  "history": [
+    {
+      "pass": 1,
+      "param": "twapWeight",
+      "value": 0.8,
+      "loss": 49384977.22
+    },
+    {
+      "pass": 1,
+      "param": "session.weekend",
+      "value": 1,
+      "loss": 49083863.58
+    },
+    {
+      "pass": 1,
+      "param": "session.afterHours",
+      "value": 0.99,
+      "loss": 48839744.44
+    },
+    {
+      "pass": 1,
+      "param": "volSlope",
+      "value": 0,
+      "loss": 46564083.21
+    },
+    {
+      "pass": 1,
+      "param": "safetyFactor",
+      "value": 0.9,
+      "loss": 44719593.63999999
+    }
+  ],
+  "params": {
+    "maxStalenessSec": 30,
+    "twapWeight": 0.8,
+    "maxImpactPct": 2.5,
+    "depthFloorUsd": 25000,
+    "session": {
+      "regular": 1,
+      "afterHours": 0.99,
+      "weekend": 1,
+      "holiday": 0.85
+    },
+    "volWindowDays": 14,
+    "volRefAnnual": 0.18,
+    "volSlope": 0,
+    "volFloor": 0.7,
+    "safetyFactor": 0.9,
+    "liquidationBonusPct": 5,
+    "riskPremiumBase": 0.02,
+    "riskPremiumSlope": 0.35,
+    "targetHealth": 1.15,
+    "riskLab": {
+      "maxExecutionAgeSec": 60,
+      "maxReserveAgeSec": 60,
+      "syntheticDepthUsd": 400000,
+      "defaultNotionalUsd": 100000,
+      "defaultAverageHealthFactor": 1.5,
+      "maxUtilization": 0.999,
+      "navRangeMultiplier": 1.5,
+      "liquidityRangeMultiplier": 2,
+      "maxAverageHealthFactor": 3
+    }
+  }
+}

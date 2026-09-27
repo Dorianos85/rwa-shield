@@ -10,7 +10,10 @@ import { readFile } from 'node:fs/promises';
 const symbol = process.argv[2] || 'SPYx';
 
 let params = DEFAULT_PARAMS;
-try {
+// PARAMS_MODE=priors forces DEFAULT_PARAMS even when data/params.fitted.json exists
+// (same switch as the API server).
+if (process.env.PARAMS_MODE === 'priors') console.log('using default params (PARAMS_MODE=priors)\n');
+else try {
   const fitted = JSON.parse(await readFile(new URL('../../data/params.fitted.json', import.meta.url), 'utf8'));
   params = fitted.params;
   console.log('using fitted params from data/params.fitted.json\n');

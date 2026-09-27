@@ -1,5 +1,5 @@
 node_modules/
-data/params.fitted.json
+# data/params.fitted.json is committed on purpose (reproducible backtest numbers)
 data/report.json
 data/adversary.json
 data/calibration.trace.json
