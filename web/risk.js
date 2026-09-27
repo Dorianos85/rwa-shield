@@ -1,5 +1,6 @@
 import { computeKaminoRiskScenario } from '/src/risk/kaminoRisk.mjs';
 import { DEFAULT_PARAMS } from '/src/ecv/params.mjs';
+import { mountRiskChart } from './risk-chart.js';
 
 const $ = id => document.getElementById(id);
 const axes = ['utilization', 'navPrice', 'ammLiquidityUsd', 'averageHealthFactor'];
@@ -17,6 +18,11 @@ const signed = value => finite(value) ? (Math.abs(value) < .05 ? '0.0' : (value 
 const compact = value => finite(value) ? '$' + (Math.abs(value) >= 1e6 ? num(value / 1e6, 2) + 'M' : Math.abs(value) >= 1e3 ? num(value / 1e3, 1) + 'K' : num(value, 2)) : 'Unavailable';
 const text = (id, value) => { $(id).textContent = value; };
 const metricRows = rows => rows.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('');
+const riskChart = mountRiskChart({ onApply: point => {
+  $('navPrice').value = point.navPrice;
+  $('ammLiquidityUsd').value = point.ammLiquidityUsd;
+  queueRender();
+} });
 
 function scenario() {
   return {
@@ -190,6 +196,10 @@ function render() {
     $('maxBorrow').style.color = rwa.borrowDisabled ? 'var(--red)' : 'var(--green)';
     $('stressedHF').style.color = health.averageHealthFactorStressed < 1 ? 'var(--red)' : health.averageHealthFactorStressed < health.targetHealth ? 'var(--amber)' : 'var(--green)';
     renderBoundaries(r.boundaries);
+    riskChart.update({ ...baseline, scenario: r.scenario, rwaParams: {
+      ...DEFAULT_PARAMS, ...baseline.rwaParams,
+      riskLab: { ...DEFAULT_PARAMS.riskLab, ...baseline.rwaParams?.riskLab }
+    } }, r, { navMax: Number($('navPrice').max), liquidityMax: Number($('ammLiquidityUsd').max) });
     renderWaterfall(r);
     $('reserveBar').style.width = `${reserve.scenarioUtilization * 100}%`;
     $('reserveMetrics').innerHTML = metricRows([

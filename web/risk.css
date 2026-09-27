@@ -8,3 +8,14 @@
 .boundary-item h3,th,.source-card a{font-size:11px}
 @media(max-height:1000px){.controls{position:static}}
 @media(max-width:760px){.headline-metrics{grid-template-columns:1fr}.headline-metrics>div{border-right:0;border-bottom:1px solid var(--line)}.boundaries .panel-head{flex-wrap:wrap}.boundary-grid{grid-template-columns:1fr}.boundary-item,.boundary-item:first-child{padding:12px 0;border-left:0;border-bottom:1px solid var(--line)}}
+/* Shared-engine scenario landscape. SVG scales without a charting dependency. */
+.landscape{background:radial-gradient(ellipse at 85% 0,#14303a55,transparent 60%),var(--panel)}
+.chart-legend{display:flex;gap:18px;flex-wrap:wrap;margin:18px 0 8px;font:11px var(--mono);color:var(--muted)}
+.chart-legend span{display:flex;align-items:center;gap:7px}.chart-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}.map-safe{background:#52efb3}.map-warning{background:#ffca74}.map-critical{background:#ff8b9d}.chart-legend .map-current{background:transparent;border:2px solid white;border-radius:50%;width:11px;height:11px}
+.stress-map{width:100%;border:1px solid #284049;background:#071014;border-radius:8px;overflow:hidden;margin-top:15px;outline-offset:4px}.stress-map:focus-visible{outline:2px solid var(--cyan)}
+.stress-map svg{display:block;width:100%;height:auto;cursor:crosshair;touch-action:pan-y}.stress-map text{font:12px var(--mono);fill:#aac0c6}.stress-map g{pointer-events:none}
+.chart-inspector{margin-top:12px;padding:17px;background:#071014;border:1px solid #284049;border-radius:8px}.chart-inspector-heading{display:flex;justify-content:space-between;gap:10px;font:11px var(--mono);color:var(--muted);letter-spacing:1px}.chart-inspector-heading strong{font-weight:500}
+.chart-point-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:17px}.chart-point-metrics span{display:block;color:var(--muted);font-size:11px}.chart-point-metrics strong{display:block;font:15px var(--mono);margin-top:6px;overflow-wrap:anywhere}.chart-inspector p{color:var(--muted);font-size:12px;margin:16px 0}.chart-inspector button{font:11px var(--mono);color:var(--cyan);padding:8px 12px}
+@media(max-width:1100px){.chart-point-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:760px){.landscape .panel-head{flex-wrap:wrap}.chart-legend{gap:12px;font-size:10px}.chart-point-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stress-map{overflow-x:auto}.stress-map svg{min-width:0}.stress-map text{font-size:16px}.chart-inspector{padding:12px}.chart-inspector-heading{flex-wrap:wrap}}
+
+@media(max-width:760px){.stress-map svg{touch-action:pan-x pan-y}}

@@ -29,6 +29,20 @@ cenę i pozwala badać model wykonania, zachowując faktyczny wiek i provenance.
 Jego SAFE/WARNING/CRITICAL mają prefiks **MODELED** i nie są bieżącym sygnałem
 kredytowym. Nie należy utożsamiać offline z automatycznym sandboxem.
 
+## Interaktywna mapa ryzyka
+
+Mapa NAV × płynność AMM pokazuje SAFE/WARNING/CRITICAL dla 864 scenariuszy
+obliczonych tym samym silnikiem co panel i API. Utilization, początkowy Average HF
+i testowany notional pozostają stałe. Biały znacznik wskazuje wybrany scenariusz.
+Najechanie lub dotyk pokazuje ECV, odzysk, stressed HF i przyczynę statusu.
+Kliknięcie albo przycisk Apply ustawia oba suwaki; strzałki eksplorują mapę,
+Enter stosuje punkt, Escape przywraca podgląd wybranego scenariusza.
+
+To próbkowana mapa modelu, nie historia cen ani dokładna linia graniczna.
+Dokładniejsze granice dla jednej zmiennej pozostają w sekcji poniżej. Current
+zachowuje blokady świeżości; sandbox ma jawne oznaczenie MODELED. SVG działa
+offline, bez nowych bibliotek, także na małym ekranie.
+
 ## Architektura i kontrakty
 
 - `src/data/kamino.mjs`: oficjalne metryki, konfiguracja rezerw, cache i zapisany pomiar.

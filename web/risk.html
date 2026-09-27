@@ -50,6 +50,17 @@
       <section class="risk-banner panel" id="riskBanner" aria-live="polite"><div class="risk-heading"><span class="eyebrow">02 / FIRST BINDING CONSTRAINT</span><span id="riskStatus" class="status">LOADING</span></div><h2 id="dominantReason">Loading the risk baseline…</h2><p id="dominantDetail">Source availability is checked before calculating a scenario.</p><div class="risk-tags" id="riskTags"></div></section>
       <section class="headline-metrics" aria-label="Scenario outcomes"><div><span>RWA safe LTV</span><strong id="safeLtv">—</strong><small id="ltvGap">vs Kamino —</small></div><div><span>Max new borrow</span><strong id="maxBorrow">—</strong><small id="borrowGate">Gate —</small></div><div><span>Stressed Avg HF</span><strong id="stressedHF">—</strong><small id="healthBuffer">Boundary 1.00</small></div></section>
 
+      <section class="panel landscape" aria-labelledby="landscapeTitle">
+        <div class="panel-head"><div><span class="eyebrow">INTERACTIVE STRESS MAP</span><h2 id="landscapeTitle">See the risk landscape.</h2></div><span id="chartMode" class="badge">MODEL GRID</span></div>
+        <p id="chartContext" class="helper">NAV × AMM execution liquidity. Reserve utilization and initial Average HF stay fixed.</p>
+        <div class="chart-legend" aria-label="Risk map legend"><span><i class="map-safe"></i>SAFE</span><span><i class="map-warning"></i>WARNING</span><span><i class="map-critical"></i>CRITICAL</span><span><i class="map-current"></i>Selected scenario</span></div>
+        <div id="stressMap" class="stress-map" tabindex="0" role="group" aria-label="Interactive NAV and AMM liquidity stress map. Arrow keys explore; Enter applies a point; Escape returns to the selected scenario." aria-describedby="chartHelp">
+          <svg id="stressSvg" viewBox="0 0 800 420" role="img" aria-label="Risk classifications across NAV and AMM liquidity scenarios"><g id="chartCells"></g><g id="chartAxes"></g><g id="chartMarker"></g><g id="chartHover"></g></svg>
+        </div>
+        <div class="chart-inspector"><div class="chart-inspector-heading"><span id="chartPointLabel">SELECTED SCENARIO</span><strong id="chartPointStatus">—</strong></div><div id="chartPointMetrics" class="chart-point-metrics"></div><p id="chartPointReason">Loading the shared risk model…</p><button id="applyChartPoint" type="button" disabled>Apply explored point ↗</button></div>
+        <p id="chartHelp" class="helper">Hover or touch to inspect. Click the map or use Enter to apply NAV and AMM liquidity together. Arrow keys explore. Cells are sampled model scenarios, not price history; precise one-axis boundaries are below.</p>
+      </section>
+
       <section class="panel boundaries" aria-labelledby="boundaryTitle"><div class="panel-head"><div><span class="eyebrow">03 / RISK BOUNDARY</span><h2 id="boundaryTitle">When does this break?</h2></div><span class="badge subtle">RECOMPUTED LOCALLY</span></div><p class="helper">One variable moves toward stress; all others hold at your selected values. A boundary may already be crossed.</p><div id="boundaries" class="boundary-grid"></div></section>
 
       <div class="two-panels">

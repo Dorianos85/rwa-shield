@@ -137,5 +137,18 @@ Lokalny screenshot dowodowy: `.qa/risk-desktop.png` (celowo poza Gitem).
 - [x] Rzeczywisty serwer, manualne API i rzeczywista przeglądarka.
 - [x] Adversarial review, naprawy, ponowne testy i final grill bez blockerów.
 
+## Uzupełnienie — mapa ryzyka NAV × AMM
+
+- 61/61 testów PASS, w tym porównanie 864 komórek z silnikiem i kontrola,
+  że stara cena w trybie current nie daje zielonych pól przy korzystnym NAV.
+- Backtest: wszystkie sześć scenariuszy, bez wyjątków; integracyjny `/api/ecv` 200.
+- Przegląd niezależnego agenta: brak blockerów modelu/integracji. Poprawiono
+  zachowanie podglądu klawiatury/dotyku przy odświeżaniu co 5 s.
+- Przeglądarka: 1440 × 1000 oraz 390 × 844, bez poziomego overflow strony/mapy.
+  Strzałki, Enter, Apply i reset sprawdzone; aktualizacja obu suwaków działa.
+- Current na nieaktualnym snapshot: cała mapa CRITICAL; sandbox: trzy strefy.
+- Pierwsze rysowanie 864 pól: około 24 ms w lokalnej sesji, bez błędów konsoli.
+- Zrzut lokalny `.qa/risk-chart.png` (poza Gitem).
+
 Push i PR wykonuje orkiestrator po tej weryfikacji; dowód stanowi link PR i
 historia commitów. Nie ma automatycznego merge ani publicznego deploymentu.
