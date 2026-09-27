@@ -28,9 +28,9 @@ body {
   background:#090e19;
 }
 .intro::before {
-  content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(90deg,#090e19 0%,#090e19 52%,#090e19dd 60%,#090e1900 78%),
-    url('/web/assets/rwa-shield-banner.jpg') right center / auto 100% no-repeat;
+  content:"";position:absolute;inset:0 0 0 45%;z-index:-1;
+  background:url('/web/assets/rwa-shield-banner.jpg') right center / auto 100% no-repeat;
+  mask-image:linear-gradient(90deg,transparent 0%,transparent 35%,#000 65%);
 }
 .intro::after {
   content:"";position:absolute;left:38px;top:0;width:110px;height:2px;
@@ -85,6 +85,7 @@ footer {border-color:var(--line);color:#a7b7ce}
   .intro {min-height:245px;padding:24px 20px;margin:18px 0;border-radius:10px}
   .intro>div {max-width:80%}
   .intro::before {
+    inset:0;mask-image:none;
     background:linear-gradient(90deg,#090e19fa,#090e19a3 65%,#090e1940),
       url('/web/assets/rwa-shield-banner.jpg') 78% center / auto 100% no-repeat;
   }
