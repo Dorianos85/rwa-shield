@@ -1,0 +1,33 @@
+{
+  "_source": "GET /api/ecv from `node src/api/server.mjs` (src/api/server.mjs -> computeEcv in src/ecv/model.mjs). Re-capture with the queries below; only `outputs` is used by tests.",
+  "_captured_at": "2026-09-25",
+  "_params_mode": "priors",
+  "cases": [
+    {
+      "name": "regular_session_gate_open",
+      "query": "/api/ecv?symbol=SPYx&session=regular",
+      "impact_pct": 1.2,
+      "outputs": {
+        "max_borrow": 68730.43,
+        "collateral_cap": 296400,
+        "liquidation_route": "offline:synthetic-curve",
+        "risk_premium": 0.0242,
+        "borrow_disabled": false,
+        "breaker_reason": null
+      }
+    },
+    {
+      "name": "weekend_thin_book_breaker",
+      "query": "/api/ecv?symbol=SPYx&session=weekend&depth=60000&notional=250000",
+      "impact_pct": 81.64965809277261,
+      "outputs": {
+        "max_borrow": 0,
+        "collateral_cap": 134257.5,
+        "liquidation_route": "offline:synthetic-curve",
+        "risk_premium": 0.1089,
+        "borrow_disabled": true,
+        "breaker_reason": "impact_extreme"
+      }
+    }
+  ]
+}
