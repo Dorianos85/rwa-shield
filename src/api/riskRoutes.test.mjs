@@ -100,10 +100,15 @@ test('offline HTTP integration preserves legacy routes and validates risk-lab re
     assert.equal(data.overallStatus, 'CRITICAL');
     assert.ok(!/NaN|Infinity/.test(JSON.stringify(data)));
   }
-  for (const path of ['/', '/risk', '/web/risk.js', '/web/risk.css', '/src/risk/kaminoRisk.mjs']) {
+  for (const path of ['/', '/risk', '/web/risk.js', '/web/risk.css', '/web/risk-brand.css', '/web/assets/rwa-shield-logo.jpg', '/web/assets/rwa-shield-banner.jpg', '/src/risk/kaminoRisk.mjs']) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200, path);
     if (path.endsWith('.mjs')) assert.match(response.headers.get('content-type'), /javascript/);
+    if (path.endsWith('.jpg')) {
+      assert.equal(response.headers.get('content-type'), 'image/jpeg');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      assert.deepEqual([...bytes.slice(0, 2)], [255, 216]);
+    }
   }
   for (const path of ['/.git/config', '/package.json', '/src/data/kamino.mjs', '/src/api/server.mjs', '/web/%2e%2e/.git/config']) {
     assert.equal((await fetch(base + path)).status, 404, path);

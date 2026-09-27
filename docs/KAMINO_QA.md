@@ -182,5 +182,15 @@ Lokalny screenshot dowodowy: `.qa/risk-desktop.png` (celowo poza Gitem).
 - Ograniczenie: kilka równoległych klientów dzieli limit keyless i może wymagać
   ponowienia po timeout. Wiek najstarszego kwotowania pozostaje zachowany.
 
+## Uzupełnienie — identyfikacja @RWASHIELDPL
+
+- Oryginalne logo i baner profilu X zapisane lokalnie; pochodzenie w `docs/BRAND.md`.
+- Motyw granat/turkus/fiolet, logo w nawigacji i favicon, baner w nagłówku.
+  Semantyczne kolory ryzyka i obliczenia bez zmian.
+- 78/78 testów PASS, backtest PASS. HTTP sprawdza poprawny typ JPEG i nagłówki
+  obu grafik; serwer udostępnia tylko te dwa konkretne pliki zasobów.
+- Widoki 390 i 1440 px bez poziomego overflow; logo załadowane, konsola bez błędów.
+- Screenshot lokalny `.qa/risk-brand.png`.
+
 Push i PR wykonuje orkiestrator po tej weryfikacji; dowód stanowi link PR i
 historia commitów. Nie ma automatycznego merge ani publicznego deploymentu.

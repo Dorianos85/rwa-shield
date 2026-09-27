@@ -137,6 +137,7 @@ const server = createServer(async (req, res) => {
     // Serve only public UI and the pure browser model. Never expose repository
     // metadata, local configuration, source adapters, or arbitrary disk paths.
     const publicFile = /^web\/[a-zA-Z0-9_-]+\.(html|js|css)$/.test(file)
+      || ['web/assets/rwa-shield-logo.jpg', 'web/assets/rwa-shield-banner.jpg'].includes(file)
       || ['src/risk/kaminoRisk.mjs', 'src/ecv/model.mjs', 'src/ecv/params.mjs'].includes(file);
     if (!publicFile) return notFound(res);
     const body = await readFile(new URL(file, ROOT));
@@ -199,7 +200,7 @@ function json(res, obj) {
   res.end(JSON.stringify(obj));
 }
 function mime(f) {
-  return { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json' }[extname(f)] || 'text/plain';
+  return { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg' }[extname(f)] || 'text/plain';
 }
 
 function notFound(res) {
