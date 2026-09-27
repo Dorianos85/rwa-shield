@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeEcv, healthFactor, recoveryOnLiquidation } from './model.mjs';
-import { DEFAULT_PARAMS } from './params.mjs';
+import { DEFAULT_PARAMS, RISK_LAB_BOUNDS } from './params.mjs';
 
 const base = {
   mint: 'SPYx', symbol: 'SPYx', qty: 100, oraclePrice: 1000, twapPrice: 1000,
@@ -51,4 +51,14 @@ test('health factor and recovery are consistent', () => {
   const debt = r.outputs.max_borrow;
   assert.ok(healthFactor(r.executableValue, debt) > 1);
   assert.ok(recoveryOnLiquidation(r.executableValue) > debt);
+});
+
+test('risk lab display/search settings do not alter the frozen ECV computation', () => {
+  const params = structuredClone(DEFAULT_PARAMS);
+  delete params.riskLab;
+  assert.deepEqual(computeEcv(base), computeEcv(base, params));
+  for (const [key, value] of Object.entries(DEFAULT_PARAMS.riskLab)) {
+    const [min, max] = RISK_LAB_BOUNDS[`riskLab.${key}`];
+    assert.ok(value >= min && value <= max);
+  }
 });
