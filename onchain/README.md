@@ -14,14 +14,14 @@ Kod: angielski. Ten README: polski (AGENTS.md, zasada 6).
 |---|---|
 | Program `ecv_oracle` | `5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc` |
 | `Config` PDA `["config"]` | `Dty68hZxpsTbGySXyNa9uPXCqCoTKwYHMQ4ZANPQskZK` |
-| `EcvRecord` SPYx `["ecv", mint]` | `54jQEaQugDtKdXhX6XoBVtb3vYfD4tWGjpsmb6W4wMRw` |
-| Mint SPYx (klucz, nie konto tokena) | `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB` |
+| `EcvRecord` SPYx `["ecv", mint]` | `Hv6EyQr8q3K7TdNzehFH8tn1j1JBU8SdY37Npgys1Yf` |
+| Mint SPYx (klucz, nie konto tokena) | `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W` |
 
 Explorer (cluster `devnet`):
 
 - [program](https://explorer.solana.com/address/5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc?cluster=devnet)
 - [Config](https://explorer.solana.com/address/Dty68hZxpsTbGySXyNa9uPXCqCoTKwYHMQ4ZANPQskZK?cluster=devnet)
-- [EcvRecord SPYx](https://explorer.solana.com/address/54jQEaQugDtKdXhX6XoBVtb3vYfD4tWGjpsmb6W4wMRw?cluster=devnet)
+- [EcvRecord SPYx](https://explorer.solana.com/address/Hv6EyQr8q3K7TdNzehFH8tn1j1JBU8SdY37Npgys1Yf?cluster=devnet)
 
 Program jest już na **devnet** (deploy: investiatech, slot 504332522, 157 008 bajtów).
 Upgrade authority: `DtmWopzAxqkb9xtZFDjaCQ4zmhS3QHL4bJ2HesoqhE6P`. Keypair programu nie
@@ -153,7 +153,7 @@ cargo run -p poster -- --cluster devnet --symbol SPYx \
   --query 'session=weekend&depth=60000&notional=250000'
 ```
 
-Po sukcesie: ta sama strona konta `54jQEa…` w explorerze, dwa podpisy tx, `posted_slot`
+Po sukcesie: ta sama strona konta `Hv6EyQ…` w explorerze, dwa podpisy tx, `posted_slot`
 rośnie, `borrow_disabled` się odwraca. Nazwane pola w explorerze: po `anchor idl init`
 (wymaga upgrade authority programu).
 

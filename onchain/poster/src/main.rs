@@ -28,7 +28,7 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 /// Same caveat as there: VERIFY before a live demo. On devnet these are keys
 /// only - the oracle never touches the token.
 const MINTS: &[(&str, &str)] = &[
-    ("SPYx", "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB"),
+    ("SPYx", "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W"),
     ("QQQx", "XsueG8BtpquVJX9LVLLEGuViXUungE6WmK5YZ3p3bd1"),
     ("NVDAx", "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh"),
 ];
