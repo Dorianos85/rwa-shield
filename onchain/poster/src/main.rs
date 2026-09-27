@@ -6,10 +6,12 @@
 //! Usage (defaults in brackets):
 //!   poster [--api http://localhost:8787] [--symbol SPYx] [--query k=v&k=v] [--live]
 //!          [--cluster localnet|devnet|<http url>] [--keypair ~/.config/solana/id.json]
-//!          [--init] [--max-staleness-sec 30] [--dry-run]
+//!          [--init] [--max-staleness-sec 30] [--every-sec N] [--dry-run]
 //!
-//! `--init` creates the Config PDA if it does not exist yet (signer becomes
-//! the authority). `--dry-run` fetches and encodes but sends nothing.
+//! `--every-sec N` repeats the post every N seconds (Ctrl-C to stop) so
+//! `posted_at` stays inside `max_staleness_sec`. N must be shorter than that
+//! TTL. `--init` creates the Config PDA if it does not exist yet (signer
+//! becomes the authority). `--dry-run` fetches and encodes but sends nothing.
 
 use anchor_client::{
     anchor_lang::{prelude::Pubkey, solana_program::system_program},
@@ -20,7 +22,7 @@ use poster::encode::{decode, diff_outputs, encode, Encoded, Outputs};
 use solana_commitment_config::CommitmentConfig;
 use solana_keypair::{read_keypair_file, Keypair};
 use solana_signer::Signer;
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 /// xStocks mints, copied verbatim from `src/data/jupiter.mjs` `MINTS`.
 /// Same caveat as there: VERIFY before a live demo. On devnet these are keys
@@ -40,6 +42,7 @@ struct Args {
     keypair: String,
     init: bool,
     max_staleness_sec: u32,
+    every_sec: Option<u64>,
     dry_run: bool,
 }
 
@@ -54,6 +57,7 @@ fn parse_args() -> Result<Args> {
         init: false,
         // Same default as `maxStalenessSec` in src/ecv/params.mjs; override with the flag.
         max_staleness_sec: 30,
+        every_sec: None,
         dry_run: false,
     };
     let mut it = std::env::args().skip(1);
@@ -68,9 +72,16 @@ fn parse_args() -> Result<Args> {
             "--keypair" => a.keypair = shellexpand_home(&val("--keypair")?),
             "--init" => a.init = true,
             "--max-staleness-sec" => a.max_staleness_sec = val("--max-staleness-sec")?.parse()?,
+            "--every-sec" => {
+                let n: u64 = val("--every-sec")?.parse()?;
+                if n == 0 {
+                    bail!("--every-sec must be greater than 0");
+                }
+                a.every_sec = Some(n);
+            }
             "--dry-run" => a.dry_run = true,
             "-h" | "--help" => {
-                println!("{}", include_str!("main.rs").lines().take(12).map(|l| l.trim_start_matches("//! ").trim_start_matches("//!")).collect::<Vec<_>>().join("\n"));
+                println!("{}", include_str!("main.rs").lines().take(14).map(|l| l.trim_start_matches("//! ").trim_start_matches("//!")).collect::<Vec<_>>().join("\n"));
                 std::process::exit(0);
             }
             other => bail!("unknown flag {other}"),
@@ -131,6 +142,9 @@ fn print_encoded(e: &Encoded) {
 
 fn main() -> Result<()> {
     let args = parse_args()?;
+    if args.dry_run && args.every_sec.is_some() {
+        bail!("--dry-run sends nothing, so --every-sec does not apply");
+    }
 
     let mint_str = MINTS
         .iter()
@@ -139,27 +153,12 @@ fn main() -> Result<()> {
         .ok_or_else(|| anyhow!("unknown symbol {}; known: {:?}", args.symbol, MINTS.iter().map(|m| m.0).collect::<Vec<_>>()))?;
     let mint = Pubkey::from_str(mint_str)?;
 
-    // 1. API
-    let resp = fetch_ecv(&args)?;
-    println!(
-        "api: params={} session={} impactPct={:.4} quoteSource={}",
-        resp.params_mode.as_deref().unwrap_or("?"),
-        resp.session.as_deref().unwrap_or("?"),
-        resp.impact_pct.unwrap_or(f64::NAN),
-        resp.quote_source.as_deref().unwrap_or("?")
-    );
-    println!("api outputs: {}", serde_json::to_string(&resp.outputs)?);
-
-    // 2. Encode
-    let enc = encode(&resp.outputs).context("encoding API outputs for the chain")?;
-    print_encoded(&enc);
-
     if args.dry_run {
+        fetch_and_encode(&args)?;
         println!("dry run - nothing sent");
         return Ok(());
     }
 
-    // 3. Client
     let payer: Arc<Keypair> = Arc::new(
         read_keypair_file(&args.keypair).map_err(|e| anyhow!("reading keypair {}: {e}", args.keypair))?,
     );
@@ -173,13 +172,53 @@ fn main() -> Result<()> {
     let (config_pda, _) = Pubkey::find_program_address(&[ecv_oracle::constants::CONFIG_SEED], &program_id);
     let (record_pda, _) = Pubkey::find_program_address(&[ecv_oracle::constants::ECV_SEED, mint.as_ref()], &program_id);
 
-    // 4. Config (initialize on demand)
+    let staleness = ensure_config(&program, payer.as_ref(), &args, config_pda)?;
+
+    let once = || publish(&program, payer.as_ref(), &args, mint, config_pda, record_pda);
+
+    match args.every_sec {
+        None => once(),
+        Some(every) => {
+            if every >= u64::from(staleness) {
+                eprintln!(
+                    "warning: --every-sec {every} is not shorter than max_staleness_sec {staleness}; consumers will treat the record as stale between posts"
+                );
+            }
+            println!("periodic update every {every}s (max_staleness_sec={staleness}); Ctrl-C to stop");
+            loop {
+                if let Err(e) = once() {
+                    eprintln!("post failed: {e:#}");
+                }
+                println!("sleeping {every}s");
+                std::thread::sleep(Duration::from_secs(every));
+            }
+        }
+    }
+}
+
+fn fetch_and_encode(args: &Args) -> Result<(EcvResponse, Encoded)> {
+    let resp = fetch_ecv(args)?;
+    println!(
+        "api: params={} session={} impactPct={:.4} quoteSource={}",
+        resp.params_mode.as_deref().unwrap_or("?"),
+        resp.session.as_deref().unwrap_or("?"),
+        resp.impact_pct.unwrap_or(f64::NAN),
+        resp.quote_source.as_deref().unwrap_or("?")
+    );
+    println!("api outputs: {}", serde_json::to_string(&resp.outputs)?);
+    let enc = encode(&resp.outputs).context("encoding API outputs for the chain")?;
+    print_encoded(&enc);
+    Ok((resp, enc))
+}
+
+fn ensure_config(program: &anchor_client::Program<Arc<Keypair>>, payer: &Keypair, args: &Args, config_pda: Pubkey) -> Result<u32> {
     match program.account::<ecv_oracle::state::Config>(config_pda) {
         Ok(cfg) => {
             println!("config {config_pda}: authority={} max_staleness_sec={}", cfg.authority, cfg.max_staleness_sec);
             if cfg.authority != payer.pubkey() {
                 bail!("signer {} is not the oracle authority {}; post_ecv would fail with Unauthorized", payer.pubkey(), cfg.authority);
             }
+            Ok(cfg.max_staleness_sec)
         }
         Err(_) if args.init => {
             println!("config {config_pda} missing - initializing with max_staleness_sec={}", args.max_staleness_sec);
@@ -194,11 +233,22 @@ fn main() -> Result<()> {
                 .send()
                 .context("initialize failed")?;
             println!("initialize tx: {sig}");
+            Ok(args.max_staleness_sec)
         }
         Err(e) => bail!("config {config_pda} not found ({e}); run with --init to create it"),
     }
+}
 
-    // 5. Post
+fn publish(
+    program: &anchor_client::Program<Arc<Keypair>>,
+    payer: &Keypair,
+    args: &Args,
+    mint: Pubkey,
+    config_pda: Pubkey,
+    record_pda: Pubkey,
+) -> Result<()> {
+    let (resp, enc) = fetch_and_encode(args)?;
+
     let sig = program
         .request()
         .accounts(ecv_oracle::accounts::PostEcv {
@@ -220,7 +270,6 @@ fn main() -> Result<()> {
         .context("post_ecv failed")?;
     println!("post_ecv tx: {sig}");
 
-    // 6. Read back and verify
     let record = program.account::<ecv_oracle::state::EcvRecord>(record_pda).context("reading record back")?;
     let chain = decode(&record);
     println!("record {record_pda}: mint={} posted_slot={} posted_at={}", record.mint, record.posted_slot, record.posted_at);

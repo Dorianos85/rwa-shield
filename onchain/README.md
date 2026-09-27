@@ -162,5 +162,23 @@ rośnie, `borrow_disabled` się odwraca. Nazwane pola w explorerze: po `anchor i
 ```
 poster [--api http://localhost:8787] [--symbol SPYx] [--query k=v] [--live]
        [--cluster localnet|devnet|<http url>] [--keypair ~/.config/solana/id.json]
-       [--init] [--max-staleness-sec 30] [--dry-run]
+       [--init] [--max-staleness-sec 30] [--every-sec N] [--dry-run]
+```
+
+## Odświeżanie
+
+`max_staleness_sec` to 30. Konsument uzna rekord za nieświeży, gdy
+`now - posted_at` przekroczy tę wartość, więc jednorazowy post starzeje się
+od razu. `--every-sec N` woła `/api/ecv` i wysyła `post_ecv` co N sekund
+(Ctrl-C zatrzymuje). Post idzie nawet gdy liczby się nie zmieniły — `posted_at`
+stempeluje program.
+
+N musi być **krótsze** niż `max_staleness_sec`, inaczej między postami feed jest
+stale (poster wypisze ostrzeżenie). 15 s to połowa TTL: zostaje zapas na czas
+transakcji.
+
+```bash
+# API na :8787, validator albo devnet z Config już zainicjalizowanym
+cd onchain
+cargo run -p poster -- --cluster localnet --every-sec 15
 ```

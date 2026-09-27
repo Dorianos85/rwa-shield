@@ -142,6 +142,8 @@ Each task is one Executor step. Do not start the next until the user verifies.
   Signs with `~/.config/solana/id.json`. Prints tx signature, PDA address, decoded record.
   Success: on localnet, fetching the PDA after run returns values equal to the API response.
 
+- [ ] **T9 — Periodic poster** — `--every-sec N` loops `post_ecv` so `posted_at` stays inside `max_staleness_sec` (30). Interval shorter than the TTL; API/tx errors retry, wrong authority still exits. Awaiting user check that two posts land ~15s apart on localnet.
+
 - [ ] **T8 — Devnet + docs** — README 2026-09-26; dwa posty na devnet **zablokowane** (0 SOL, faucet 429).
   `anchor deploy --provider.cluster devnet`. Run poster twice for SPYx against the same PDA:
   (1) default params → `borrow_disabled=false`; (2) `session=weekend&depth=60000&notional=250000`
@@ -191,6 +193,7 @@ Clarifications recorded:
 - [x] T6 Encoding module — committed by user in `ebd1f69`
 - [x] T7 Poster — committed by user in `cab9da4`
 - [ ] T8 Devnet + docs — README written; posts pending faucet
+- [ ] T9 Periodic poster — `--every-sec` implemented; awaiting user verification
 
 ## Current Status / Progress Tracking
 
@@ -358,6 +361,20 @@ EcvRecord SPYx **nie** istnieją. `anchor deploy` pominięty: upgrade authority 
 `requestAirdrop` 429.
 
 ## Executor's Feedback or Assistance Requests
+
+2026-09-26 — T9 in progress. Poster gained `--every-sec N`. One-shot path unchanged.
+Interval must be shorter than on-chain `max_staleness_sec` (warning otherwise).
+API and tx failures are logged and retried; missing config / wrong authority still exit.
+Localnet loop with `--every-sec 15` (half of TTL 30): four posts, VERIFY OK,
+`posted_at` 1790445313 → 5329 → 5345 → 5359 (~15s), slots 9141 → 9173 → 9205 → 9235.
+Process left running. Awaiting user confirmation before marking T9 done.
+
+2026-09-27 — T9 recheck, not marked done. Reject paths exit 1 (`--every-sec 0`,
+`--dry-run` combined with `--every-sec`). Wrong authority exits before the loop.
+A dead API logs `post failed` and retries. Two live posts VERIFY OK on the same
+PDA, but `posted_at` gap was 29s (1790504419 → 1790504448), not ~15s. This
+validator's clock is 1 unix second per slot and ~2 slots per wall second, so a
+15s wall sleep ages the record by ~30 chain seconds, equal to `max_staleness_sec`.
 
 T8 docs done (uncommitted `onchain/README.md`). Explorer artefact (false→true na `54jQEa…`)
 czeka na ~0.01 SOL devnet na `7JdE2aji83yFmsn9QNtbBYJ9RTpiP3FjLmpnuz2SimKR`. Po doładowaniu
