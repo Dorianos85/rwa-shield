@@ -26,6 +26,7 @@ export async function fetchJson(url, { fetchImpl = fetch, timeoutMs = TIMEOUT_MS
     try { body = await response.json(); } catch { /* transport errors need not contain JSON */ }
     throw Object.assign(new Error(`Upstream HTTP ${response.status}`), {
       status: response.status,
+      retryAfter: response.headers?.get('retry-after') ?? null,
       upstreamCode: typeof body?.errorCode === 'string' ? body.errorCode : null
     });
   }

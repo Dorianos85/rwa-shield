@@ -32,7 +32,7 @@ test('default keyless configuration attempts real quote endpoint without inventi
       return valid(url);
     } });
   assert.equal(calls, 9);
-  assert.ok(intervals.every(ms => ms === 2000));
+  assert.ok(intervals.every(ms => ms === 2200));
   assert.equal(result.available, true);
   assert.equal(result.measured, true);
   assert.equal(result.routableUsd, 1000000);
@@ -130,5 +130,91 @@ test('impact threshold determines measured depth, is validated and separates cac
   assert.equal(calls, 18);
   for (const maxImpactPct of [0, -1, 101, NaN, Infinity, '2']) {
     await assert.rejects(getLiquidity({ ...options, maxImpactPct }), /Invalid maximum quote impact/);
+  }
+});
+
+test('429 retries respect Retry-After and preserve the first successful capture timestamp', async () => {
+  let time = start, calls = 0;
+  const waits = [];
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { waits.push(ms); time += ms; } });
+  const result = await getLiquidity({ reserve, asset, notionalUsd: 100016, clock: () => time, schedule,
+    fetchImpl: async url => {
+      calls++;
+      if (calls === 2) return { ok: false, status: 429, headers: new Headers({ 'retry-after': '7' }), json: async () => ({}) };
+      return valid(url);
+    } });
+  assert.equal(calls, 10);
+  assert.equal(result.measured, true);
+  assert.equal(result.source.timestamp, new Date(start).toISOString());
+  assert.ok(waits.includes(7000));
+  assert.equal(result.source.ageSec, (time - start) / 1000);
+});
+
+test('HTTP-date cooldown is shared and excessive Retry-After fails closed without an early retry', async () => {
+  let time = start, calls = 0;
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { time += ms; } });
+  const result = await getLiquidity({ reserve, asset, notionalUsd: 100017, clock: () => time, schedule,
+    fetchImpl: async () => {
+      calls++;
+      return { ok: false, status: 429, headers: new Headers({ 'retry-after': new Date(start + 60000).toUTCString() }), json: async () => ({}) };
+    } });
+  assert.equal(calls, 1);
+  assert.equal(result.available, false);
+  assert.equal(result.source.timestamp, null);
+  await schedule(2200);
+  assert.equal(time, start + 60000);
+});
+
+test('repeated 429 has a bounded retry budget and never invents measured depth', async () => {
+  let time = start, calls = 0;
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { time += ms; } });
+  const result = await getLiquidity({ reserve, asset, notionalUsd: 100018, clock: () => time, schedule,
+    fetchImpl: async () => { calls++; return { ok: false, status: 429, json: async () => ({}) }; } });
+  assert.equal(calls, 3);
+  assert.equal(time, start + 15000);
+  assert.equal(result.measured, false);
+  assert.equal(result.routableUsd, 0);
+});
+
+test('a cooldown extended during sleep is rechecked before releasing a queued request', async () => {
+  let time = start, sleeps = 0;
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => {
+    time += ms;
+    if (++sleeps === 1) schedule.deferUntil(time + 7000);
+  } });
+  await schedule(2200);
+  await schedule(2200);
+  assert.equal(time, start + 9200);
+});
+
+test('queue deadline rejects a long cooldown immediately and the scheduler remains usable', async () => {
+  let time = start, slept = false;
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { slept = true; time += ms; } });
+  schedule.deferUntil(start + 120000);
+  await assert.rejects(schedule(2200, start + 45000), /cooldown exceeds quote deadline/);
+  assert.equal(slept, false);
+  time += 120000;
+  await schedule(2200, time + 45000);
+});
+
+test('successful response latency does not consume the next quote spacing', async () => {
+  let time = start;
+  const arrivals = [];
+  const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { time += ms; } });
+  const result = await getLiquidity({ reserve, asset, notionalUsd: 100019, clock: () => time, schedule,
+    fetchImpl: async url => { arrivals.push(time); time += 700; return valid(url); } });
+  assert.equal(result.measured, true);
+  assert.equal(arrivals[1] - arrivals[0], 2900);
+});
+
+test('transient HTTP 500 is retried, but authentication errors are not', async () => {
+  for (const status of [500, 401]) {
+    let time = start, calls = 0;
+    const schedule = createQuoteScheduler({ clock: () => time, sleep: async ms => { time += ms; } });
+    const result = await getLiquidity({ reserve, asset, notionalUsd: 300000 + status, clock: () => time, schedule,
+      fetchImpl: async url => ++calls === 1 ? { ok: false, status, json: async () => ({}) } : valid(url) });
+    assert.equal(result.measured, status === 500);
+    assert.equal(calls, status === 500 ? 10 : 1);
+    if (status === 500) assert.equal(result.source.timestamp, new Date(start + 5000).toISOString());
   }
 });

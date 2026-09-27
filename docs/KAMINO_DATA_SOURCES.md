@@ -34,3 +34,14 @@ Domyślnym źródłem AMM są kwotowania `https://api.jup.ag/swap/v1/quote` dla 
 Po awarii lub w trybie offline execution zachowuje ostatni rzeczywisty pomiar z jego timestampem, a jeśli pomiaru nie ma, zwraca `available=false`, pustą krzywą i jawne „Unavailable”. Nigdy automatycznie nie podstawia $400k. Dawna krzywa wymaga wybrania `Synthetic sandbox` (`execution=synthetic`) i pozostaje jawnie modelowa. Timeout Kamino wynosi 5 s na żądanie; Jupiter 2,5 s na punkt skończonej drabiny. Cache trwa 60 s i zachowuje czas najstarszego kwotowania; po awarii ma `live=false`, `cached=true`, `fallback=true`. Równoczesne identyczne pomiary współdzielą jedno zapytanie do drabiny.
 
 Źródła są niezależne: `offline=1&execution=jupiter` pobiera Kamino ze snapshotu i AMM z Jupitera. `execution=offline` nie pobiera kwotowań. `RISK_OFFLINE=1` wymusza brak sieci dla całego panelu. Wartość początkowa i Reset suwaka AMM korzystają z wybranego pomiaru; przesunięcie suwaka pozostaje lokalnym scenariuszem, nie nowym kwotowaniem.
+
+Ochrona przed limitem API: odstęp od zakończenia poprzedniego żądania wynosi
+2,2 s bez klucza i 1,1 s z kluczem. HTTP 429, przejściowe błędy 500/502/503/504
+i timeout uruchamiają najwyżej dwa ponowienia
+w całej drabinie, z łącznym budżetem oczekiwania 15 s. `Retry-After` (sekundy
+lub data HTTP) wydłuża wspólną blokadę zapytań; dłuższej blokady adapter nie
+omija. Cała drabina ma limit 45 s, a równocześnie wykonywany jest jeden
+rzeczywisty pomiar (identyczne żądania współdzielą wynik). Błąd po wyczerpaniu
+limitu nadal zwraca ostatni pomiar lub jawny brak danych. Nieudane wyniki są
+buforowane przez 60 s, również przy Refresh. Ponowienie nie zmienia czasu
+wcześniej otrzymanych kwotowań.

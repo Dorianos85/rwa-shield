@@ -5,10 +5,18 @@ import { fetchJson, provenance } from './kamino.mjs';
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const cache = new Map();
 const inFlight = new Map();
+let nativeLadderActive = false;
 const NATIVE_FETCH = globalThis.fetch;
 const TTL_MS = 60_000;
 const MAX_CACHE_ENTRIES = 64;
 const MAX_IN_FLIGHT = 8;
+// Operational limits: leave margin for request arrival jitter at Jupiter.
+const KEYLESS_INTERVAL_MS = 2200;
+const KEYED_INTERVAL_MS = 1100;
+const MAX_TRANSIENT_RETRIES = 2;
+const RETRY_BACKOFF_MS = 5000;
+const RETRY_BUDGET_MS = 15000;
+const LADDER_BUDGET_MS = 45000;
 const DEFAULT_QUOTE_URL = 'https://api.jup.ag/swap/v1/quote';
 // Existing dashboard's explicit demo assumption, not measured liquidity.
 const SYNTHETIC_DEPTH_USD = DEFAULT_PARAMS.riskLab.syntheticDepthUsd;
@@ -18,15 +26,21 @@ const PROBE_SIZES = [2_500, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1
 export function createQuoteScheduler({ clock = Date.now, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   let tail = Promise.resolve();
   let nextAllowed = 0;
-  return intervalMs => {
+  const schedule = (intervalMs, deadline = Infinity) => {
     const turn = tail.then(async () => {
-      const delay = Math.max(0, nextAllowed - clock());
-      if (delay) await sleep(delay);
+      // Recheck after sleep: a different ladder may extend the shared cooldown.
+      while (nextAllowed > clock()) {
+        if (nextAllowed >= deadline) throw new Error('Jupiter cooldown exceeds quote deadline; retry later');
+        await sleep(nextAllowed - clock());
+      }
+      if (clock() >= deadline) throw new Error('Jupiter quote deadline exceeded; retry later');
       nextAllowed = clock() + intervalMs;
     });
     tail = turn.catch(() => {});
     return turn;
   };
+  schedule.deferUntil = deadline => { nextAllowed = Math.max(nextAllowed, deadline); };
+  return schedule;
 }
 const scheduleNativeQuote = createQuoteScheduler();
 
@@ -95,17 +109,27 @@ export async function getLiquidity({ reserve, asset, notionalUsd = 100_000, synt
     : unavailableLiquidity({ notionalUsd, maxImpactPct, endpoint: quoteUrl, now: clock(), reason: 'Offline requested; no measured Jupiter quotes cached' });
   if (prior && clock() - prior.loadedAt < TTL_MS && (!refresh || prior.failed)) return observedCache(prior.result, clock());
   if (inFlight.has(key)) return inFlight.get(key);
-  if (inFlight.size >= MAX_IN_FLIGHT) return unavailableLiquidity({ notionalUsd, maxImpactPct, endpoint: quoteUrl, now: clock(), reason: 'Jupiter quote queue is busy; try again after the active ladders finish' });
+  if (inFlight.size >= MAX_IN_FLIGHT || (fetchImpl === NATIVE_FETCH && nativeLadderActive)) {
+    const reason = 'Jupiter quote queue is busy; try again after the active ladder finishes';
+    return prior?.result.measured ? observedCache(prior.result, clock(), reason)
+      : unavailableLiquidity({ notionalUsd, maxImpactPct, endpoint: quoteUrl, now: clock(), reason });
+  }
+  if (fetchImpl === NATIVE_FETCH) nativeLadderActive = true;
   const pending = probeLiquidity({ reserve, asset, notionalUsd, maxImpactPct, fetchImpl, clock, schedule, apiKey, quoteUrl, key, prior });
   inFlight.set(key, pending);
-  try { return await pending; } finally { inFlight.delete(key); }
+  try { return await pending; } finally {
+    inFlight.delete(key);
+    if (fetchImpl === NATIVE_FETCH) nativeLadderActive = false;
+  }
 }
 
 async function probeLiquidity({ reserve, asset, notionalUsd, maxImpactPct, fetchImpl, clock, schedule, apiKey, quoteUrl, key, prior }) {
   try {
     if (!Number.isInteger(reserve.decimals) || !(asset.navPrice > 0)) throw new Error('Verified token decimals or reference price unavailable');
     const curve = [];
-    let oldestProbeAt;
+    let oldestProbeAt, transientRetries = 0, retryWaitMs = 0;
+    const interval = apiKey ? KEYED_INTERVAL_MS : KEYLESS_INTERVAL_MS;
+    const deadline = clock() + LADDER_BUDGET_MS;
     for (const amount of [...new Set([...PROBE_SIZES, notionalUsd])].sort((a, b) => a - b)) {
       const raw = Math.floor(amount / asset.navPrice * 10 ** reserve.decimals);
       if (!Number.isSafeInteger(raw) || raw <= 0) throw new Error('Token amount cannot be represented safely');
@@ -113,9 +137,36 @@ async function probeLiquidity({ reserve, asset, notionalUsd, maxImpactPct, fetch
       for (const [name, value] of Object.entries({ inputMint: reserve.mint, outputMint: USDC, amount: raw, slippageBps: 50, swapMode: 'ExactIn', instructionVersion: 'V2' })) url.searchParams.set(name, value);
       let data;
       try {
-        await schedule(apiKey ? 1000 : 2000);
-        oldestProbeAt ??= clock();
-        data = await fetchJson(url, { fetchImpl, timeoutMs: 2500, headers: apiKey ? { 'x-api-key': apiKey } : {} });
+        for (;;) {
+          await schedule(interval, deadline);
+          const probeAt = clock();
+          const timeoutMs = Math.min(2500, deadline - probeAt);
+          if (timeoutMs <= 0) throw new Error('Jupiter quote deadline exceeded; retry later');
+          try {
+            data = await fetchJson(url, { fetchImpl, timeoutMs, headers: apiKey ? { 'x-api-key': apiKey } : {} });
+            oldestProbeAt ??= probeAt;
+            break;
+          } catch (error) {
+            const transient = [429, 500, 502, 503, 504].includes(error.status) || error.name === 'TimeoutError';
+            if (!transient) {
+              if (error.upstreamCode === 'COULD_NOT_FIND_ANY_ROUTE') oldestProbeAt ??= probeAt;
+              throw error;
+            }
+            const header = error.retryAfter;
+            const seconds = header == null || header.trim() === '' ? NaN : Number(header);
+            const requestedDelay = Number.isFinite(seconds) ? Math.max(0, seconds * 1000)
+              : Math.max(0, Date.parse(header) - clock()) || 0;
+            const delay = Math.max(requestedDelay, RETRY_BACKOFF_MS * 2 ** transientRetries);
+            // Applies to all queued native ladders, including when retry budget is exhausted.
+            schedule.deferUntil?.(clock() + delay);
+            if (transientRetries >= MAX_TRANSIENT_RETRIES || retryWaitMs + delay > RETRY_BUDGET_MS || !schedule.deferUntil) throw error;
+            transientRetries++;
+            retryWaitMs += delay;
+          } finally {
+            // Pace from completion as well as start; network latency cannot consume the gap.
+            schedule.deferUntil?.(clock() + interval);
+          }
+        }
       } catch (error) {
         if (error.upstreamCode !== 'COULD_NOT_FIND_ANY_ROUTE') throw error;
         data = { errorCode: error.upstreamCode };

@@ -194,3 +194,18 @@ Lokalny screenshot dowodowy: `.qa/risk-desktop.png` (celowo poza Gitem).
 
 Push i PR wykonuje orkiestrator po tej weryfikacji; dowód stanowi link PR i
 historia commitów. Nie ma automatycznego merge ani publicznego deploymentu.
+## Uzupełnienie — odporność rzeczywistych kwotowań na błędy API
+
+27.09.2026: po poprawce odstępów i ponowień rzeczywisty endpoint
+`https://api.jup.ag/swap/v1/quote` zwrócił osiem kwotowań TSLAx → USDC.
+Najstarszy punkt: `2026-09-27T15:39:33.798Z`. Zmierzona głębokość drabiny
+wyniosła 250 000 USD przy limicie wpływu 2,5%; wpływ przy 250 000 USD wyniósł
+1,1343%, a przy 500 000 USD 3,4900%. To obserwacja z tego pomiaru, nie stała
+konfiguracja ani obietnica przyszłej egzekucji.
+
+- 85/85 testów PASS; backtest: sześć scenariuszy bez wyjątków; `/api/ecv`: 200.
+- Przeglądarka: AMM source = Jupiter quotes, aktywny suwak startuje z 250000;
+  Home zmienia go na 0, Reset przywraca 250000; brak błędów konsoli.
+- Testy obejmują Retry-After w sekundach i dacie HTTP, wspólny cooldown,
+  ponowienie 429 i 500, brak retry 401, limit prób, deadline kolejki oraz
+  zachowanie czasu pierwszego udanego kwotowania.
