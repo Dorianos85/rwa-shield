@@ -3,6 +3,10 @@
 **Landing:** https://dorianos85.github.io/rwa-shield/
 **Live demo path:** `DEMO_RUNBOOK.md`
 
+**Kamino × xStocks Risk Lab:** po uruchomieniu serwera otwórz
+`http://localhost:8787/risk`. Cztery niezależne suwaki stresu, stałe TVL wybranej
+rezerwy, granice ryzyka i jawne pochodzenie danych. [Model, źródła i instrukcja](docs/KAMINO_RISK_LAB.md).
+
 Warstwa ryzyka dla lendingu pod tokenizowane akcje na Solanie. Zamiast stałego LTV
 liczy **ECV** — kwotę USDC, jaką likwidacja pozycji realnie zwróci w obecnych
 warunkach płynności, sesji giełdowej i zmienności.
