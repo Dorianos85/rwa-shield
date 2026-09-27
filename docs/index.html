@@ -3,742 +3,199 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="RWA Shield — Executable Collateral Value for tokenized equities on Solana. How much USDC you really recover if you liquidate now.">
-<title>RWA Shield — Executable Collateral Value</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<title>RWA Shield · Executable Collateral Value for tokenized stocks on Solana</title>
+<meta name="description" content="RWA Shield computes Executable Collateral Value (ECV): the USDC a lending venue can actually recover from a tokenized-stock position under stress. Open-source prototype; Anchor program on Solana devnet.">
+<link rel="icon" type="image/jpeg" href="assets/rwa-shield-logo.jpg">
 <style>
-  :root {
-    --ink: #060A0C;
-    --panel: #0D1417;
-    --panel2: #111A1E;
-    --line: #1C2A2F;
-    --hi: #2A3E45;
-    --txt: #DCE8E8;
-    --dim: #7C9195;
-    --faint: #55686C;
-    --green: #00FF88;
-    --cyan: #00D4FF;
-    --amber: #FFB020;
-    --red: #FF4D5E;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    --sans: "IBM Plex Sans", system-ui, sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-  }
-
-  body {
-    background: var(--ink);
-    color: var(--txt);
-    font-family: var(--sans);
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  a { color: var(--green); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-
-  .nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 16px 28px;
-    background: rgba(6, 10, 12, 0.82);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.3s;
-  }
-  .nav.scrolled { border-bottom-color: var(--line); }
-  .nav-logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.12em;
-    color: var(--green);
-    font-weight: 500;
-  }
-  .nav-links {
-    margin-left: auto;
-    display: flex;
-    gap: 22px;
-    list-style: none;
-  }
-  .nav-links a {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
-    text-decoration: none;
-  }
-  .nav-links a:hover { color: var(--txt); }
-  .nav-cta {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink) !important;
-    background: var(--green);
-    padding: 8px 14px;
-    border: none;
-    text-decoration: none !important;
-  }
-  .nav-cta:hover { opacity: 0.9; text-decoration: none !important; }
-
-  .hero {
-    position: relative;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    padding: 100px 28px 80px;
-  }
-  #canvas-wrap {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.55;
-  }
-  #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
-  .hero-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 720px;
-    margin: 0 auto 0 8vw;
-  }
-  .eyebrow {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-bottom: 22px;
-  }
-  .eyebrow span { color: var(--green); }
-  h1 {
-    font-family: var(--mono);
-    font-size: clamp(36px, 6vw, 56px);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    line-height: 1.15;
-    color: var(--txt);
-    margin-bottom: 8px;
-  }
-  h1 .accent { color: var(--green); }
-  .pl-sub {
-    font-size: 14px;
-    color: var(--dim);
-    margin-bottom: 28px;
-    font-weight: 400;
-  }
-  .value-prop {
-    font-size: clamp(18px, 2.4vw, 22px);
-    color: var(--txt);
-    font-weight: 400;
-    max-width: 34em;
-    margin-bottom: 36px;
-    line-height: 1.45;
-  }
-  .value-prop strong { color: var(--green); font-weight: 500; }
-  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
-  .btn {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 14px 22px;
-    border: 1px solid var(--hi);
-    background: var(--panel2);
-    color: var(--txt);
-    cursor: pointer;
-    text-decoration: none !important;
-    transition: border-color 0.2s, color 0.2s, background 0.2s;
-  }
-  .btn:hover { border-color: var(--green); color: var(--green); }
-  .btn-primary {
-    background: var(--green);
-    border-color: var(--green);
-    color: var(--ink) !important;
-  }
-  .btn-primary:hover { background: #33ff9e; border-color: #33ff9e; color: var(--ink) !important; }
-
-  section {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 88px 28px;
-  }
-  .section-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--green);
-    margin-bottom: 14px;
-  }
-  .section-label::before { content: "› "; }
-  h2 {
-    font-family: var(--sans);
-    font-size: clamp(26px, 3.5vw, 34px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
-    margin-bottom: 20px;
-    max-width: 18em;
-  }
-  .lead {
-    font-size: 17px;
-    color: var(--dim);
-    max-width: 38em;
-    margin-bottom: 40px;
-  }
-
-  .problem-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-  @media (max-width: 720px) {
-    .problem-grid { grid-template-columns: 1fr; }
-    .hero-inner { margin-left: 0; }
-    .nav-links { display: none; }
-  }
-  .card {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 28px 26px;
-  }
-  .card h3 {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    color: var(--txt);
-  }
-  .card.bad h3 { color: var(--amber); }
-  .card.good h3 { color: var(--green); }
-  .card p { color: var(--dim); font-size: 15px; }
-
-  .formula {
-    border: 1px solid var(--line);
-    background: var(--panel2);
-    padding: 28px 26px;
-    margin-bottom: 28px;
-    font-family: var(--mono);
-    font-size: clamp(13px, 2vw, 15px);
-    letter-spacing: 0.02em;
-    color: var(--cyan);
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  .formula .op { color: var(--faint); }
-  .terms {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  .term {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 18px 16px;
-  }
-  .term .sym {
-    font-family: var(--mono);
-    font-size: 18px;
-    color: var(--green);
-    margin-bottom: 6px;
-  }
-  .term .name {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-bottom: 8px;
-  }
-  .term p { font-size: 13px; color: var(--dim); line-height: 1.45; }
-
-  .proof-box {
-    border: 1px solid var(--line);
-    background: linear-gradient(160deg, var(--panel) 0%, #0a1215 100%);
-    padding: 36px 32px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    align-items: center;
-  }
-  @media (max-width: 720px) {
-    .proof-box { grid-template-columns: 1fr; }
-  }
-  .proof-stat {
-    text-align: center;
-    padding: 20px;
-  }
-  .proof-stat .num {
-    font-family: var(--mono);
-    font-size: clamp(28px, 5vw, 40px);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-    margin-bottom: 8px;
-  }
-  .proof-stat.bad .num { color: var(--amber); }
-  .proof-stat.good .num { color: var(--green); }
-  .proof-stat .lbl {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-  .proof-copy h3 {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
-    margin-bottom: 12px;
-  }
-  .proof-copy p { color: var(--dim); font-size: 15px; margin-bottom: 12px; }
-  .proof-copy p:last-child { margin-bottom: 0; }
-  .vs {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--faint);
-    text-align: center;
-    letter-spacing: 0.14em;
-  }
-
-  .stack-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-  }
-  .stack-item {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 20px 18px;
-  }
-  .stack-item .tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--green);
-    margin-bottom: 8px;
-  }
-  .stack-item h3 {
-    font-size: 15px;
-    font-weight: 500;
-    margin-bottom: 6px;
-  }
-  .stack-item p { font-size: 13px; color: var(--dim); }
-
-  .cta-block {
-    text-align: center;
-    padding: 100px 28px 80px;
-    border-top: 1px solid var(--line);
-    max-width: none;
-  }
-  .cta-block h2 { margin-left: auto; margin-right: auto; }
-  .cta-block .lead { margin-left: auto; margin-right: auto; }
-  .cta-actions {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 8px;
-  }
-
-  footer {
-    border-top: 1px solid var(--line);
-    padding: 28px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 28px;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 980px;
-    margin: 0 auto;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--faint);
-  }
-  footer .tags { display: flex; flex-wrap: wrap; gap: 10px; }
-  footer .tag-pill {
-    border: 1px solid var(--line);
-    padding: 4px 10px;
-    color: var(--dim);
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--line);
-    max-width: 980px;
-    margin: 0 auto;
-  }
+:root{--bg:#070b14;--panel:#101724;--line:#283449;--text:#e9eef8;--muted:#a1aec3;--cyan:#39d6df;--violet:#a677ee;--green:#60dfb2;--amber:#ffca78;--red:#ff7e98;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--text);font:16px/1.6 var(--sans);background:radial-gradient(ellipse at 100% 0,#37235855,transparent 42rem),radial-gradient(ellipse at 0 22rem,#123d4e44,transparent 45rem),var(--bg)}
+a{color:var(--cyan)}
+code{font-family:var(--mono);font-size:.9em;background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:5;background:#090e19e8;backdrop-filter:blur(8px);border-bottom:1px solid #29334b}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-weight:700;font-size:19px}
+.brand img{width:36px;height:36px;border-radius:10px}
+nav{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+nav a{color:var(--muted);text-decoration:none}
+nav a:hover{color:var(--text)}
+.btn{display:inline-block;padding:10px 16px;border-radius:10px;font-weight:600;text-decoration:none;border:1px solid var(--cyan);color:#061018;background:var(--cyan)}
+.btn.ghost{background:transparent;color:var(--cyan)}
+.hero{padding:64px 0 32px}
+.eyebrow{font:600 12px/1.4 var(--mono);letter-spacing:1.6px;color:var(--violet);text-transform:uppercase}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.05;margin:12px 0 16px;letter-spacing:-1px}
+h2{font-size:clamp(26px,3.6vw,36px);line-height:1.15;margin:8px 0 16px;letter-spacing:-.5px}
+h3{margin:0 0 8px;font-size:18px}
+.lead{font-size:clamp(17px,2vw,20px);color:var(--muted);max-width:760px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}
+.chip{font:600 12px/1 var(--mono);letter-spacing:.6px;padding:8px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:#0b1220}
+.chip.amber{border-color:#6b5530;color:var(--amber)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+section{padding:44px 0;border-top:1px solid #1a2334}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card p{margin:0;color:var(--muted)}
+.card .tag{display:inline-block;margin-bottom:10px;font:600 11px/1 var(--mono);letter-spacing:1px;padding:5px 8px;border-radius:6px;background:#12303a;color:var(--cyan)}
+.card .tag.v{background:#2a1f45;color:var(--violet)}
+.card .tag.a{background:#3a2e17;color:var(--amber)}
+.formula{font:600 clamp(14px,2vw,18px)/1.6 var(--mono);background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow-x:auto;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+td.num{font-family:var(--mono);white-space:nowrap}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.note{font-size:14px;color:var(--muted)}
+.warn{border-left:3px solid var(--amber);padding:10px 14px;background:#1a160c;border-radius:0 10px 10px 0;color:#f3dcb4;font-size:15px}
+.team .card h3{margin-bottom:2px}
+.team .role{color:var(--cyan);font-size:14px;margin-bottom:6px}
+ul.clean{margin:0;padding-left:18px;color:var(--muted)}
+ul.clean li{margin:4px 0}
+footer{padding:32px 0 48px;border-top:1px solid #1a2334;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:640px){nav{display:none}.hero{padding-top:36px}}
 </style>
 </head>
 <body>
-
-<nav class="nav" id="nav">
-  <a class="nav-logo" href="https://github.com/Dorianos85/rwa-shield">RWA SHIELD</a>
-  <ul class="nav-links">
-    <li><a href="#problem">Problem</a></li>
-    <li><a href="#product">Product</a></li>
-    <li><a href="#proof">Proof</a></li>
-    <li><a href="#stack">Stack</a></li>
-  </ul>
-  <a class="nav-cta" href="#cta">GitHub</a>
-</nav>
-
-<header class="hero">
-  <div id="canvas-wrap" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <p class="eyebrow"><span>Solana</span> · RWA · Colosseum / Blockchain Hack Krakow</p>
-    <h1>RWA <span class="accent">SHIELD</span></h1>
-    <p class="pl-sub">Warstwa ryzyka i płynności dla tokenizowanych akcji na Solanie</p>
-    <p class="value-prop">
-      <strong>Executable Collateral Value</strong> — how much USDC you really recover
-      if you liquidate tokenized equity collateral <em>now</em>. Not another Aave.
-    </p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href="#product">See ECV</a>
-      <a class="btn" href="#cta">View on GitHub</a>
-    </div>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/rwa-shield-logo.jpg" alt="" width="36" height="36">RWA Shield</a>
+    <nav aria-label="Sections">
+      <a href="#problem">Problem</a><a href="#ecv">ECV</a><a href="#today">What exists</a><a href="#backtest">Backtest</a><a href="#team">Team</a><a href="#links">Links</a>
+    </nav>
+    <a class="btn" href="risk/">Open Risk Lab</a>
   </div>
 </header>
 
-<div class="divider"></div>
-
-<section id="problem">
-  <p class="section-label">Problem</p>
-  <h2>Oracle price is not cash in the pool.</h2>
-  <p class="lead">
-    Fixed-LTV lending on tokenized equities assumes you can exit at the mark.
-    On Solana, after hours and on weekends, the book is thin, the base market is closed,
-    and a liquidation that looks solvent on paper becomes bad debt in the pool.
-  </p>
-  <div class="problem-grid">
-    <div class="card bad">
-      <h3>Fixed LTV</h3>
-      <p>
-        Marks collateral at oracle × constant haircut. Ignores depth, session state,
-        and realized volatility. Weekend gaps turn “healthy” books into ~$4M losses
-        in our stress scenarios.
-      </p>
+<main class="wrap">
+  <div class="hero">
+    <p class="eyebrow">Executable Collateral Value · tokenized stocks · Solana</p>
+    <h1>Oracle price is not cash.</h1>
+    <p class="lead">RWA Shield computes <strong>Executable Collateral Value (ECV)</strong>: the USDC a lending venue can actually recover from a tokenized-stock collateral position under stress, instead of the oracle mark.</p>
+    <div class="chips" aria-label="Project status">
+      <span class="chip">OPEN SOURCE PROTOTYPE</span>
+      <span class="chip amber">SOLANA DEVNET ONLY</span>
+      <span class="chip amber">NOT AUDITED</span>
+      <span class="chip amber">NOT A LENDING SIGNAL</span>
     </div>
-    <div class="card good">
-      <h3>Executable value</h3>
-      <p>
-        Asks what USDC the route actually returns under current liquidity and calendar.
-        Refuses new credit when recovery would fail — without zeroing existing collateral marks.
-      </p>
+    <div class="cta">
+      <a class="btn" href="risk/">Open the Risk Lab (recorded snapshot)</a>
+      <a class="btn ghost" href="https://github.com/Dorianos85/rwa-shield">View the code</a>
+      <a class="btn ghost" href="deck/RWA-Shield-Pitch-Deck.pdf">Pitch deck (PDF)</a>
     </div>
   </div>
-</section>
 
-<div class="divider"></div>
+  <section id="problem" aria-labelledby="problem-h">
+    <p class="eyebrow">The problem</p>
+    <h2 id="problem-h">Lending against tokenized stocks prices collateral at a mark, not at an exit.</h2>
+    <div class="grid">
+      <div class="card"><h3>The token trades when the stock does not</h3><p>Tokenized stocks trade around the clock, while the underlying market is closed on nights, weekends and holidays. A reference price can be hours old when a liquidation actually has to happen.</p></div>
+      <div class="card"><h3>On-chain books are thin</h3><p>A forced sale goes through DEX liquidity. For a large position, price impact means the USDC recovered can be well below the oracle value of the collateral.</p></div>
+      <div class="card"><h3>Fixed LTV sees neither</h3><p>A fixed loan-to-value ratio on the oracle price lends the same amount in a calm session and in a thin weekend book. The gap between mark and exit becomes bad debt for the pool.</p></div>
+    </div>
+  </section>
 
-<section id="product">
-  <p class="section-label">Product</p>
-  <h2>ECV: collateral valued as recoverable USDC.</h2>
-  <p class="lead">
-    Six terms. Pure functions. Same model for live pricing, backtests, and the agent swarm.
-    The breaker gates new borrows — it never cascade-liquidates an open book.
-  </p>
-  <div class="formula" aria-label="ECV formula">
-    ECV <span class="op">=</span> P<sub>oracle</sub>
-    <span class="op">×</span> D(q)
-    <span class="op">×</span> S(q)
-    <span class="op">×</span> M(t)
-    <span class="op">×</span> V(σ)
-    &nbsp;&nbsp;<span class="op">·</span>&nbsp;&nbsp; B = breaker
-  </div>
-  <div class="terms">
-    <div class="term">
-      <div class="sym">P</div>
-      <div class="name">Oracle</div>
-      <p>Mark from the price feed — the starting point, not the answer.</p>
+  <section id="ecv" aria-labelledby="ecv-h">
+    <p class="eyebrow">The approach</p>
+    <h2 id="ecv-h">ECV: value the exit, then lend against it.</h2>
+    <p class="formula">ECV = P_oracle × q × D(q) × S(q) × M(t) × V(σ) &nbsp;&nbsp;·&nbsp;&nbsp; B = breaker (gates new credit)</p>
+    <p class="note">D = routable depth for this size, S = slippage / price impact, M = market-session buffer, V = volatility buffer. Each term is a factor in (0, 1]. The breaker gates <em>new</em> borrowing only; it does not mark existing collateral to zero. Health factor is measured against executable value, so healthy positions are not liquidated just because the market closed.</p>
+    <h3 style="margin-top:24px">Five outputs a venue can consume</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Output</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>max_borrow</code></td><td>Maximum new USDC borrow against this position (0 when the breaker is on).</td></tr>
+          <tr><td><code>collateral_cap</code></td><td>Cap on how much of this collateral the venue should accept.</td></tr>
+          <tr><td><code>liquidation_route</code></td><td>The execution route the value is based on (e.g. the quoted DEX route).</td></tr>
+          <tr><td><code>risk_premium</code></td><td>Rate premium that grows as slippage, session and volatility risk grow.</td></tr>
+          <tr><td><code>borrow_disabled</code></td><td>Breaker: stale price, depth below floor or extreme impact. New credit stops; existing positions keep their value.</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="term">
-      <div class="sym">D</div>
-      <div class="name">Depth</div>
-      <p>How much of the book can absorb this size without collapsing.</p>
-    </div>
-    <div class="term">
-      <div class="sym">S</div>
-      <div class="name">Slippage</div>
-      <p>Route impact on Jupiter (or offline fallback) for this notional.</p>
-    </div>
-    <div class="term">
-      <div class="sym">M</div>
-      <div class="name">Session</div>
-      <p>NYSE open / after-hours / weekend / holiday — when the hedge exists.</p>
-    </div>
-    <div class="term">
-      <div class="sym">V</div>
-      <div class="name">Volatility</div>
-      <p>Haircut from realized vol so stress is priced before it hits.</p>
-    </div>
-    <div class="term">
-      <div class="sym">B</div>
-      <div class="name">Breaker</div>
-      <p>Stops new credit when feeds fail. Leaves open positions marked.</p>
-    </div>
-  </div>
-</section>
+  </section>
 
-<div class="divider"></div>
-
-<section id="proof">
-  <p class="section-label">Proof</p>
-  <h2>Same book. Two models. One weekend.</h2>
-  <p class="lead">
-    110 days of hourly synthetic SPYx-style data. Positions every 7h, 96h maturity,
-    session-aware liquidation delay. Highlight: weekend gap −22% + thin book.
-  </p>
-  <div class="proof-box">
-    <div>
-      <div class="proof-stat bad">
-        <div class="num">~$4.0M</div>
-        <div class="lbl">Bad debt · fixed 70% LTV</div>
+  <section id="today" aria-labelledby="today-h">
+    <p class="eyebrow">What exists today</p>
+    <h2 id="today-h">Three working pieces, honestly labelled.</h2>
+    <div class="grid">
+      <div class="card">
+        <span class="tag">OPEN SOURCE</span>
+        <h3>ECV engine</h3>
+        <p>Pure, deterministic model in Node 20 with zero npm dependencies: the six ECV terms, health factor, liquidation recovery, a synthetic backtest harness and calibration agents. <code>npm test</code> runs the suite.</p>
       </div>
-      <p class="vs">VS</p>
-      <div class="proof-stat good">
-        <div class="num">$0</div>
-        <div class="lbl">Bad debt · ECV</div>
+      <div class="card">
+        <span class="tag v">SOLANA DEVNET</span>
+        <h3>Anchor program <code>ecv_oracle</code></h3>
+        <p>Publishes the five ECV outputs to a per-mint account; integrators enforce them. Deployed on devnet on 26.09.2026. Program ID:<br><a href="https://explorer.solana.com/address/5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc?cluster=devnet"><code>5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc</code></a><br>One record posted so far (26.09.2026), single-authority signer, route in that record was a synthetic curve. Not mainnet, not audited.</p>
+      </div>
+      <div class="card">
+        <span class="tag a">RECORDED SNAPSHOT</span>
+        <h3>Kamino × xStocks Risk Lab</h3>
+        <p>Interactive dashboard with four independent stress axes (USDC utilization, NAV, AMM liquidity, average health factor). The public version runs on a recorded Kamino snapshot from 27.09.2026 13:50 (Warsaw) and a synthetic AMM depth curve. Not live, not a lending signal.</p>
+        <p style="margin-top:12px"><a href="risk/">Open the Risk Lab →</a></p>
       </div>
     </div>
-    <div class="proof-copy">
-      <h3>Weekend tail · gap −22% · thin book</h3>
-      <p>
-        Fixed LTV keeps lending into a closed market and a shallow route.
-        When the gap opens, the pool eats ~$3.98M of bad debt.
-      </p>
-      <p>
-        ECV refuses the credit beforehand. Calm markets: ECV lends ~the same as fixed LTV.
-        Stress: denial of credit — not loss of the pool.
-      </p>
-    </div>
-  </div>
-</section>
+  </section>
 
-<div class="divider"></div>
+  <section id="backtest" aria-labelledby="backtest-h">
+    <p class="eyebrow">Backtest · synthetic · in-sample</p>
+    <h2 id="backtest-h">Same loan book, two risk models.</h2>
+    <p class="warn"><strong>Synthetic, in-sample.</strong> 110 days of generated hourly prices (2,640 points) with weekend gaps, not historical market data. The parameters were fitted on the same series they are tested on. This shows how the mechanism behaves, not how it would have performed in a real market.</p>
+    <div class="table-scroll" style="margin-top:16px">
+      <table>
+        <thead><tr><th>Scenario</th><th>Bad debt · fixed 70% LTV</th><th>Bad debt · ECV</th><th>ECV credit vs fixed LTV</th></tr></thead>
+        <tbody>
+          <tr><td>Calm base market</td><td class="num">$0</td><td class="num">$0</td><td class="num">99.6%</td></tr>
+          <tr><td>Tail: −22% weekend gap + thin book</td><td class="num">$3,982,378</td><td class="num">$0</td><td class="num">0% (369 loans refused)</td></tr>
+          <tr><td>Liquidity crunch (−70% depth)</td><td class="num">$297,220</td><td class="num">$0</td><td class="num">0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Reproduce: <code>npm run calibrate</code> (writes <code>data/params.fitted.json</code>, also committed) then <code>npm run backtest</code>. With the unfitted default parameters (<code>PARAMS_MODE=priors npm run backtest</code>) the tail scenario is $5,336,023 vs $0. ECV avoids the loss by refusing new credit under stress; that trade-off is the point, and it is visible in the last column.</p>
+  </section>
 
-<section id="stack">
-  <p class="section-label">Stack</p>
-  <h2>Zero install. Node 20+. Offline-first.</h2>
-  <p class="lead">
-    Built for a pitch night where dependencies are risk. Pure ECV model, Jupiter adapter
-    with fallback, backtest engine, and a swarm of calibrator / adversary / monitor agents.
-  </p>
-  <div class="stack-grid">
-    <div class="stack-item">
-      <div class="tag">Chain</div>
-      <h3>Solana</h3>
-      <p>Tokenized equities, USDC settlement, Jupiter routes.</p>
+  <section id="team" class="team" aria-labelledby="team-h">
+    <p class="eyebrow">Team</p>
+    <h2 id="team-h">Who is building it.</h2>
+    <div class="grid">
+      <div class="card"><h3>Dorian Żaczek</h3><div class="role">CEO, Founder &amp; Product Manager</div></div>
+      <div class="card"><h3>Mieszko Manijak</h3><div class="role">CTO &amp; DeFi Architect Engineer</div></div>
+      <div class="card"><h3>Julita Szaruta</h3><div class="role">Legal, Tax &amp; Regulatory Lead</div></div>
+      <div class="card"><h3>Adam Książkiewicz</h3><div class="role">Rust / Anchor · investiatech</div></div>
+      <div class="card"><h3>Adam Kwak</h3><div class="role">Advisor</div></div>
     </div>
-    <div class="stack-item">
-      <div class="tag">Model</div>
-      <h3>ECV core</h3>
-      <p>Pure functions in <code>src/ecv/</code> — fully testable, no I/O.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Data</div>
-      <h3>Session + vol</h3>
-      <p>NYSE calendar in UTC, realized volatility, depth-aware impact.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Agents</div>
-      <h3>Swarm</h3>
-      <p>Calibrator, adversary, monitor — parameters with hard bounds.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Demo</div>
-      <h3>Dashboard</h3>
-      <p>Waterfall pricing, stress, backtest table — single HTML + API.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Event</div>
-      <h3>Hack Krakow</h3>
-      <p>Colosseum / Blockchain Hack — risk layer, not another lending fork.</p>
-    </div>
-  </div>
-</section>
+  </section>
 
+  <section id="hackathons" aria-labelledby="hack-h">
+    <p class="eyebrow">Hackathons</p>
+    <h2 id="hack-h">Where we have shown it.</h2>
+    <ul class="clean">
+      <li>Blockchain Hack Kraków, Superteam Poland (19–20.09.2026)</li>
+      <li>Blockchain Hack Warsaw, Superteam Poland (26–27.09.2026)</li>
+      <li>Colosseum, October 2026 (building toward the submission)</li>
+    </ul>
+  </section>
 
-<section class="card" id="monetization" style="margin:34px 0">
-  <h2>Monetization <span style="opacity:.6;font-size:12px">(hypothesis · to-be-proven)</span></h2>
-  <p style="color:var(--dim,#7C9195)">We monetize the <strong>risk primitive</strong> (recoverable collateral via ECV), not another lending UI. No ARR or locked take-rates yet — pricing after integration talks.</p>
-  <ul>
-    <li><strong>Risk API / SDK</strong> — paid ECV quotes &amp; breakers for venues that already hold xStocks risk (subscription or per-call; free tier for demo).</li>
-    <li><strong>Share of risk premium</strong> — when ECV sits in the borrow path, share the spread that safer limits unlock.</li>
-    <li><strong>Optional vault fees</strong> — secondary only if we run our own market later.</li>
-  </ul>
-  <p style="color:var(--dim,#7C9195)">Hackathon proves avoided bad debt. Buyers: protocols already holding this collateral (Kamino / Jupiter Lend / Project 0–class venues).</p>
-</section>
-
-<section class="cta-block" id="cta">
-  <p class="section-label" style="text-align:center">Next</p>
-  <h2>Read the model. Run the backtest.</h2>
-  <p class="lead">
-    Clone the repo, start the demo API, and open the dashboard — no npm install required.
-  </p>
-  <div class="cta-actions">
-    <a class="btn btn-primary" href="https://github.com/Dorianos85/rwa-shield">GitHub repository</a>
-    <a class="btn" href="../README.md">README</a>
-    <a class="btn" href="../web/index.html">Live dashboard</a>
-  </div>
-</section>
+  <section id="links" aria-labelledby="links-h">
+    <p class="eyebrow">Links</p>
+    <h2 id="links-h">Read the code, not the claims.</h2>
+    <div class="grid">
+      <a class="card" style="text-decoration:none" href="https://github.com/Dorianos85/rwa-shield"><h3>GitHub repository</h3><p>github.com/Dorianos85/rwa-shield</p></a>
+      <a class="card" style="text-decoration:none" href="https://x.com/RWASHIELDPL"><h3>X / Twitter</h3><p>@RWASHIELDPL</p></a>
+      <a class="card" style="text-decoration:none" href="deck/RWA-Shield-Pitch-Deck.pdf"><h3>Pitch deck</h3><p>PDF</p></a>
+      <a class="card" style="text-decoration:none" href="risk/"><h3>Risk Lab</h3><p>Recorded snapshot · Kamino 27.09.2026 13:50</p></a>
+    </div>
+  </section>
+</main>
 
 <footer>
-  <div>RWA Shield · Executable Collateral Value</div>
-  <div class="tags">
-    <span class="tag-pill">Solana</span>
-    <span class="tag-pill">RWA</span>
-    <span class="tag-pill">Colosseum</span>
-    <span class="tag-pill">Hack Krakow</span>
+  <div class="wrap">
+    <span>RWA Shield · prototype. Not investment advice, not a lending signal. Program on Solana devnet only; not audited.</span>
+    <span><a href="https://github.com/Dorianos85/rwa-shield">Source</a> · <a href="https://x.com/RWASHIELDPL">@RWASHIELDPL</a></span>
   </div>
 </footer>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
-  }
-}
-</script>
-<script type="module">
-import * as THREE from 'three';
-
-const wrap = document.getElementById('canvas-wrap');
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-camera.position.set(0, 0.15, 4.2);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);
-wrap.appendChild(renderer.domElement);
-
-const group = new THREE.Group();
-scene.add(group);
-
-// Soft shield: translucent icosahedron + wireframe torus
-const icoGeo = new THREE.IcosahedronGeometry(1.15, 1);
-const icoMat = new THREE.MeshBasicMaterial({
-  color: 0x00ff88,
-  wireframe: true,
-  transparent: true,
-  opacity: 0.14
-});
-const ico = new THREE.Mesh(icoGeo, icoMat);
-group.add(ico);
-
-const torusGeo = new THREE.TorusGeometry(1.45, 0.04, 8, 64);
-const torusMat = new THREE.MeshBasicMaterial({
-  color: 0x00d4ff,
-  transparent: true,
-  opacity: 0.22
-});
-const torus = new THREE.Mesh(torusGeo, torusMat);
-torus.rotation.x = Math.PI / 2.4;
-group.add(torus);
-
-// Layered translucent planes (vault / shield suggestion)
-const planeGeo = new THREE.PlaneGeometry(2.4, 2.4);
-for (let i = 0; i < 3; i++) {
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0x00ff88,
-    transparent: true,
-    opacity: 0.03 + i * 0.015,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-  const plane = new THREE.Mesh(planeGeo, mat);
-  plane.position.z = -0.35 + i * 0.28;
-  plane.rotation.y = (i - 1) * 0.12;
-  group.add(plane);
-}
-
-const ringGeo = new THREE.RingGeometry(1.7, 1.74, 64);
-const ringMat = new THREE.MeshBasicMaterial({
-  color: 0x2a3e45,
-  transparent: true,
-  opacity: 0.5,
-  side: THREE.DoubleSide
-});
-const ring = new THREE.Mesh(ringGeo, ringMat);
-ring.rotation.x = Math.PI / 2.6;
-group.add(ring);
-
-group.position.set(1.1, 0.1, 0);
-
-function resize() {
-  const w = wrap.clientWidth;
-  const h = wrap.clientHeight;
-  camera.aspect = w / Math.max(h, 1);
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
-}
-resize();
-window.addEventListener('resize', resize);
-
-let raf = 0;
-const clock = new THREE.Clock();
-
-function renderFrame() {
-  const t = clock.getElapsedTime();
-  if (!reduceMotion) {
-    group.rotation.y = t * 0.08;
-    group.rotation.x = Math.sin(t * 0.05) * 0.08;
-    torus.rotation.z = t * 0.12;
-    ico.rotation.y = -t * 0.05;
-  } else {
-    group.rotation.set(0.12, 0.4, 0);
-  }
-  renderer.render(scene, camera);
-}
-
-function loop() {
-  raf = requestAnimationFrame(loop);
-  renderFrame();
-}
-
-if (reduceMotion) {
-  renderFrame();
-} else {
-  loop();
-}
-
-// Pause when tab hidden
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    cancelAnimationFrame(raf);
-  } else if (!reduceMotion) {
-    clock.start();
-    loop();
-  }
-});
-
-// Nav scroll border
-const nav = document.getElementById('nav');
-window.addEventListener('scroll', () => {
-  nav.classList.toggle('scrolled', window.scrollY > 20);
-}, { passive: true });
-</script>
 </body>
 </html>
