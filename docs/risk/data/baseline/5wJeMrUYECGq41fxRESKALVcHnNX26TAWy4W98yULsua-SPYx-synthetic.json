@@ -1,0 +1,351 @@
+{
+ "reserve": {
+  "market": "5wJeMrUYECGq41fxRESKALVcHnNX26TAWy4W98yULsua",
+  "marketName": "xStocks Market",
+  "reserve": "UvXjBuC7YZYaGB9Rn1PpBD1GySmjzunXgE8Zev9ua8d",
+  "address": "UvXjBuC7YZYaGB9Rn1PpBD1GySmjzunXgE8Zev9ua8d",
+  "symbol": "SPYx",
+  "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+  "tvlUsd": 4266211.699888882,
+  "currentBorrowedUsd": 98702.06057842648,
+  "currentAvailableUsd": 4167509.639310456,
+  "currentUtilization": 0.02313576248009382,
+  "configuredLtv": 0.73,
+  "liquidationThreshold": 0.75,
+  "borrowCapUsd": 3878714.2017919887,
+  "supplyCapUsd": 15514856.807167955,
+  "borrowCapTokens": 5000,
+  "supplyCapTokens": 20000,
+  "optimalUtilization": null,
+  "firstCurveKink": 0.8,
+  "borrowRateCurve": [
+   {
+    "utilization": 0,
+    "borrowRate": 0.0429
+   },
+   {
+    "utilization": 0.8,
+    "borrowRate": 0.0615
+   },
+   {
+    "utilization": 0.85,
+    "borrowRate": 0.1366
+   },
+   {
+    "utilization": 0.9,
+    "borrowRate": 0.3074
+   },
+   {
+    "utilization": 0.95,
+    "borrowRate": 0.5
+   },
+   {
+    "utilization": 1,
+    "borrowRate": 1.125
+   }
+  ],
+  "decimals": 8,
+  "oracleAddress": "3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH",
+  "oracleType": "Kamino Scope price chain",
+  "oracleSlot": 450986113,
+  "kaminoOraclePrice": 775.7428403583978,
+  "oracleTimestamp": "2026-09-27T11:48:50.000Z",
+  "oracleMaxAgeSec": 300,
+  "oracleSource": {
+   "source": "https://api.kamino.finance/oracles/prices?markets=all",
+   "timestamp": "2026-09-27T11:48:50.000Z",
+   "ageSec": 103.339,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "priceAgeAtCaptureSec": 103.339,
+  "borrowApy": 0.044395145359638066,
+  "supplyApy": 0.0009048809834188987,
+  "unavailable": {
+   "optimalUtilization": {
+    "value": null,
+    "available": false,
+    "reason": "Kamino exposes a multi-point rate curve, not a single optimal utilization field. First curve kink is reported separately."
+   }
+  },
+  "source": {
+   "source": "https://api.kamino.finance",
+   "timestamp": "2026-09-27T11:50:33.3399858Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "notes": [
+   "TVL means supplied USD, not net TVL. Available USD is supply minus borrow; protocol fees can differ from raw vault balance.",
+   "Collateral reserve. Its LTV and liquidation threshold describe the selected xStock. Its token borrow cap does not limit USDC loans secured by this collateral."
+  ]
+ },
+ "fundingReserve": {
+  "market": "5wJeMrUYECGq41fxRESKALVcHnNX26TAWy4W98yULsua",
+  "marketName": "xStocks Market",
+  "reserve": "97zoywd8mPZsGTg8q1wdD2Wgkdrs2tqusp1Qqcxbyj7E",
+  "address": "97zoywd8mPZsGTg8q1wdD2Wgkdrs2tqusp1Qqcxbyj7E",
+  "symbol": "USDC",
+  "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "tvlUsd": 5639536.430715141,
+  "currentBorrowedUsd": 5106331.715766966,
+  "currentAvailableUsd": 533204.7149481745,
+  "currentUtilization": 0.9054523857592033,
+  "configuredLtv": 0.8,
+  "liquidationThreshold": 0.9,
+  "borrowCapUsd": 15998342.559999999,
+  "supplyCapUsd": 19997928.2,
+  "borrowCapTokens": 16000000,
+  "supplyCapTokens": 20000000,
+  "optimalUtilization": null,
+  "firstCurveKink": 0.9,
+  "borrowRateCurve": [
+   {
+    "utilization": 0,
+    "borrowRate": 0
+   },
+   {
+    "utilization": 0.9,
+    "borrowRate": 0.0514
+   },
+   {
+    "utilization": 0.95,
+    "borrowRate": 0.0957
+   },
+   {
+    "utilization": 1,
+    "borrowRate": 0.1792
+   }
+  ],
+  "decimals": 6,
+  "oracleAddress": "3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH",
+  "oracleType": "Kamino Scope price chain",
+  "oracleSlot": 450986929,
+  "kaminoOraclePrice": 0.99989641,
+  "oracleTimestamp": "2026-09-27T11:48:50.000Z",
+  "oracleMaxAgeSec": 180,
+  "oracleSource": {
+   "source": "https://api.kamino.finance/oracles/prices?markets=all",
+   "timestamp": "2026-09-27T11:48:50.000Z",
+   "ageSec": 103.339,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "priceAgeAtCaptureSec": 103.339,
+  "borrowApy": 0.05784189619274893,
+  "supplyApy": 0.04688904762290447,
+  "unavailable": {
+   "optimalUtilization": {
+    "value": null,
+    "available": false,
+    "reason": "Kamino exposes a multi-point rate curve, not a single optimal utilization field. First curve kink is reported separately."
+   }
+  },
+  "source": {
+   "source": "https://api.kamino.finance",
+   "timestamp": "2026-09-27T11:50:33.3399858Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "notes": [
+   "TVL means supplied USD, not net TVL. Available USD is supply minus borrow; protocol fees can differ from raw vault balance.",
+   "USDC funding reserve for this market. Borrow cap and rate curve apply to USDC borrowing. Amounts are USD-valued at the reserve oracle price. Caps exclude elevation-group-specific limits."
+  ]
+ },
+ "fundingReserveUnavailable": null,
+ "asset": {
+  "symbol": "SPYx",
+  "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+  "underlying": "SPDR S&P 500 ETF Trust",
+  "navPrice": 775.7428403583978,
+  "navType": "Kamino oracle reference proxy — not independent issuer NAV",
+  "issuerNav": {
+   "value": null,
+   "available": false,
+   "reason": "No verified public independent issuer NAV endpoint configured."
+  },
+  "priceTimestamp": "2026-09-27T11:48:50.000Z",
+  "priceAgeSec": 103.339,
+  "priceAgeAvailable": true,
+  "priceAgeAtCaptureSec": 103.339,
+  "sessionState": "weekend",
+  "realizedVolAnnual": 0.18,
+  "modeledAssumptions": [
+   "Reference price uses the Kamino oracle proxy; no independent NAV/oracle divergence can be inferred.",
+   "Volatility uses the existing volRefAnnual model prior, not measured realized volatility."
+  ],
+  "source": {
+   "source": "https://api.kamino.finance/oracles/prices?markets=all",
+   "timestamp": "2026-09-27T11:48:50.000Z",
+   "ageSec": 103.339,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested",
+   "referenceKind": "oracle-proxy",
+   "independentNav": false
+  }
+ },
+ "execution": {
+  "routableUsd": 400000,
+  "curve": [
+   {
+    "notionalUsd": 2500,
+    "ok": true,
+    "outUsd": 2499.8814145877436,
+    "impactPct": 0.00474341649025257,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 10000,
+    "ok": true,
+    "outUsd": 9996.205266807798,
+    "impactPct": 0.03794733192202056,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 25000,
+    "ok": true,
+    "outUsd": 24962.5,
+    "impactPct": 0.15,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 50000,
+    "ok": true,
+    "outUsd": 49787.867965644036,
+    "impactPct": 0.42426406871192845,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 100000,
+    "ok": true,
+    "outUsd": 98800,
+    "impactPct": 1.2,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 250000,
+    "ok": true,
+    "outUsd": 238141.45877436857,
+    "impactPct": 4.743416490252569,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 500000,
+    "ok": true,
+    "outUsd": 432917.9606750063,
+    "impactPct": 13.416407864998739,
+    "route": "synthetic execution curve"
+   },
+   {
+    "notionalUsd": 1000000,
+    "ok": true,
+    "outUsd": 620526.6807797945,
+    "impactPct": 37.94733192202055,
+    "route": "synthetic execution curve"
+   }
+  ],
+  "source": {
+   "source": "Deterministic synthetic execution model (existing demo $400k depth assumption)",
+   "timestamp": "2026-09-27T11:50:33.339Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Explicit synthetic execution model requested"
+  },
+  "measured": false,
+  "available": true,
+  "synthetic": true,
+  "censored": false,
+  "testedNotionalUsd": 100000,
+  "testedLimitUsd": 1000000,
+  "maxImpactPct": 2.5,
+  "notes": [
+   "Synthetic depth is a model assumption, not a live quote or an estimate of total DEX liquidity."
+  ]
+ },
+ "executionMode": "synthetic",
+ "rwaParams": {
+  "maxStalenessSec": 30,
+  "twapWeight": 0.35,
+  "maxImpactPct": 2.5,
+  "depthFloorUsd": 25000,
+  "session": {
+   "regular": 1,
+   "afterHours": 0.93,
+   "weekend": 0.85,
+   "holiday": 0.85
+  },
+  "volWindowDays": 14,
+  "volRefAnnual": 0.18,
+  "volSlope": 0.9,
+  "volFloor": 0.7,
+  "safetyFactor": 0.8,
+  "liquidationBonusPct": 5,
+  "riskPremiumBase": 0.02,
+  "riskPremiumSlope": 0.35,
+  "targetHealth": 1.15,
+  "riskLab": {
+   "maxExecutionAgeSec": 60,
+   "maxReserveAgeSec": 60,
+   "syntheticDepthUsd": 400000,
+   "defaultNotionalUsd": 100000,
+   "defaultAverageHealthFactor": 1.5,
+   "maxUtilization": 0.999,
+   "navRangeMultiplier": 1.5,
+   "liquidityRangeMultiplier": 2,
+   "maxAverageHealthFactor": 3
+  }
+ },
+ "sources": {
+  "kamino": {
+   "source": "https://api.kamino.finance",
+   "timestamp": "2026-09-27T11:50:33.3399858Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "fundingReserve": {
+   "source": "https://api.kamino.finance",
+   "timestamp": "2026-09-27T11:50:33.3399858Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested"
+  },
+  "xstocks": {
+   "source": "https://api.kamino.finance/oracles/prices?markets=all",
+   "timestamp": "2026-09-27T11:48:50.000Z",
+   "ageSec": 103.339,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Offline recorded snapshot requested",
+   "referenceKind": "oracle-proxy",
+   "independentNav": false
+  },
+  "execution": {
+   "source": "Deterministic synthetic execution model (existing demo $400k depth assumption)",
+   "timestamp": "2026-09-27T11:50:33.339Z",
+   "ageSec": 0,
+   "live": false,
+   "cached": false,
+   "fallback": true,
+   "fallbackReason": "Explicit synthetic execution model requested"
+  }
+ }
+}

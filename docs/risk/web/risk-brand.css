@@ -1,0 +1,100 @@
+/* Original logo and banner from x.com/RWASHIELDPL; see docs/BRAND.md. */
+:root {
+  --bg:#070b14;
+  --panel:#101724;
+  --line:#283449;
+  --text:#e9eef8;
+  --muted:#a1aec3;
+  --cyan:#39d6df;
+  --violet:#a677ee;
+  --green:#60dfb2;
+  --amber:#ffca78;
+  --red:#ff7e98;
+}
+body {
+  background:radial-gradient(ellipse at 100% 0,#37235855,transparent 42rem),
+    radial-gradient(ellipse at 0 22rem,#123d4e44,transparent 45rem),var(--bg);
+}
+.topbar {background:#090e19e8;border-bottom-color:#29334b;gap:20px}
+.brand {color:var(--text);font-family:var(--sans);letter-spacing:-.4px;gap:12px}
+.brand img {display:block;flex:none;border-radius:12px;width:44px;height:44px}
+.brand strong {font-size:20px;font-weight:700;white-space:nowrap}
+.brand span {border-color:#38405a;letter-spacing:1.3px;font-size:10px}
+.topbar-right {gap:22px;flex-wrap:wrap;justify-content:flex-end}
+.brand-social {color:#c3a6f5}
+.intro {
+  position:relative;isolation:isolate;overflow:hidden;margin:24px 0;
+  min-height:280px;padding:34px 38px;border:1px solid #35415c;border-radius:14px;
+  background:#090e19;
+}
+.intro::before {
+  content:"";position:absolute;inset:0 0 0 45%;z-index:-1;
+  background:url('assets/rwa-shield-banner.jpg') right center / auto 100% no-repeat;
+  mask-image:linear-gradient(90deg,transparent 0%,transparent 35%,#000 65%);
+}
+.intro::after {
+  content:"";position:absolute;left:38px;top:0;width:110px;height:2px;
+  background:linear-gradient(90deg,var(--cyan),var(--violet));
+}
+.intro>div {max-width:58%}
+.intro .eyebrow {font-size:10px;letter-spacing:1.7px;margin-bottom:16px}
+.intro h1 {font-size:clamp(30px,3.1vw,46px);font-weight:600;letter-spacing:-1.5px;line-height:1.12;margin-bottom:16px}
+.intro .subtitle {font-size:13px;line-height:1.65;color:#bac8dc}
+.toolbar {border-radius:10px;border-top-color:var(--cyan);background:#111827}
+button,select,input[type=number] {background:#121d2e;border-color:#384961;border-radius:6px}
+button:hover {background:#1e2842;border-color:var(--violet)}
+.text-button {background:none;border:0}
+.panel {border-radius:10px;box-shadow:0 10px 35px #02061124}
+.current-strip {border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.current-card {background:#0d1522;border-color:var(--line)}
+.current-card strong {color:#e3edf9}
+.current-card:nth-child(-n+5) {border-top:0}
+.current-card:nth-child(5n) {border-right:0}
+.current-card:nth-last-child(-n+5) {border-bottom:0}
+.headline-metrics {background:linear-gradient(120deg,#10202c,#15192c);border-radius:10px;overflow:hidden}
+.headline-metrics strong {color:var(--cyan)}
+.controls {background:linear-gradient(160deg,#11202c,var(--panel) 55%)}
+.control {border-bottom-color:var(--line)}
+.eyebrow {color:#7ce2e5}
+.badge.live {color:#72e5dc;border-color:#386c75}
+.risk-banner {background:linear-gradient(115deg,#17243b,var(--panel))}
+.risk-banner.safe {background:linear-gradient(115deg,#12332e,var(--panel))}
+.risk-banner.warning {background:linear-gradient(115deg,#302719,var(--panel))}
+.risk-banner.critical {background:linear-gradient(115deg,#34202d,var(--panel))}
+.landscape {background:radial-gradient(ellipse at 100% 0,#6944a126,transparent 60%),var(--panel)}
+.stress-map,.chart-inspector {background:#0a101d;border-color:#304059}
+.stress-map text {fill:#b7c6da}
+.waterfall-track {background:#212c41}
+.waterfall-fill {background:linear-gradient(90deg,#35cbd7,#9d71e5)}
+.waterfall-row:last-child .waterfall-fill {background:var(--green)}
+.reserve-bar {background:#23213b}
+.reserve-bar span {background:linear-gradient(90deg,var(--cyan),var(--violet))}
+.metric-list>div {border-bottom-color:#263047}
+.source-card {background:#0c1422;border-color:var(--line);border-radius:8px}
+footer {border-color:var(--line);color:#a7b7ce}
+@media(max-width:1100px) {
+  .intro {min-height:240px;padding:28px}
+  .intro::after {left:28px}
+  .topbar-right {gap:12px}
+}
+@media(max-width:760px) {
+  .topbar {padding:12px 18px;gap:12px;align-items:center}
+  .brand {gap:8px}.brand img {width:36px;height:36px;border-radius:9px}
+  .brand strong {font-size:17px}
+  .topbar-right {font-size:10px;gap:6px;flex-direction:column;align-items:flex-end}
+  .intro {min-height:245px;padding:24px 20px;margin:18px 0;border-radius:10px}
+  .intro>div {max-width:80%}
+  .intro::before {
+    inset:0;mask-image:none;
+    background:linear-gradient(90deg,#090e19fa,#090e19a3 65%,#090e1940),
+      url('assets/rwa-shield-banner.jpg') 78% center / auto 100% no-repeat;
+  }
+  .intro::after {left:20px;width:80px}
+  .intro .eyebrow {font-size:9px;line-height:1.6;letter-spacing:1px;max-width:200px}
+  .intro h1 {font-size:28px;letter-spacing:-1px}
+  .intro .subtitle {font-size:12px}
+  .current-card:nth-child(5n) {border-right:1px solid var(--line)}
+  .current-card:nth-last-child(-n+5) {border-bottom:1px solid var(--line)}
+  .current-card:nth-child(2n) {border-right:0}
+  .current-card:nth-last-child(-n+2) {border-bottom:0}
+}

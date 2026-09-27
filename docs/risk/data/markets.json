@@ -1,0 +1,83 @@
+{
+ "markets": [
+  {
+   "address": "5wJeMrUYECGq41fxRESKALVcHnNX26TAWy4W98yULsua",
+   "name": "xStocks Market",
+   "source": {
+    "source": "https://api.kamino.finance",
+    "timestamp": "2026-09-27T11:50:33.3399858Z",
+    "ageSec": 0,
+    "live": false,
+    "cached": false,
+    "fallback": true,
+    "fallbackReason": "Offline recorded snapshot requested"
+   },
+   "reserves": [
+    {
+     "symbol": "SPYx",
+     "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+     "address": "UvXjBuC7YZYaGB9Rn1PpBD1GySmjzunXgE8Zev9ua8d"
+    },
+    {
+     "symbol": "QQQx",
+     "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+     "address": "2jerdAXR8r2B6z3P7P6VgSiePQX7wqcpbEqdDbm8mgeB"
+    },
+    {
+     "symbol": "NVDAx",
+     "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+     "address": "7B66Az3tJhAo4bLkX8PzTixQ9ZGyHkkjxfVLhF26sP5q"
+    },
+    {
+     "symbol": "TSLAx",
+     "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+     "address": "5iTiczqgUegqA3PpoNpotizMbY9n1sRWr3oL6igKvWuf"
+    },
+    {
+     "symbol": "CRCLx",
+     "mint": "XsueG8BtpquVJX9LVLLEGuViXUungE6WmK5YZ3p3bd1",
+     "address": "57qagnQFuWw1seEqi6Z5JBvkm5xH5svdmq9dtqxG1rYy"
+    }
+   ]
+  },
+  {
+   "address": "8BNUWRSibVasaAmhYpBCFpGgMisGKfVAf9ho3Cmf6vjr",
+   "name": "Sentora xStocks Market",
+   "source": {
+    "source": "https://api.kamino.finance",
+    "timestamp": "2026-09-27T11:50:33.3399858Z",
+    "ageSec": 0,
+    "live": false,
+    "cached": false,
+    "fallback": true,
+    "fallbackReason": "Offline recorded snapshot requested"
+   },
+   "reserves": [
+    {
+     "symbol": "SPYx",
+     "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+     "address": "7Yh74hEtP75acqhQ5f2FqoHQny5TYiYBPVxkwN35rCSi"
+    },
+    {
+     "symbol": "QQQx",
+     "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+     "address": "w6diwHyXhRzmhRWwnz3jQPqTt35qFbBDcQP7T2VdgSm"
+    },
+    {
+     "symbol": "NVDAx",
+     "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+     "address": "4WqQtjQbewk7ptnXsX3E3Tf3M4pa9YiBsgAqjsJDkspH"
+    }
+   ]
+  }
+ ],
+ "source": {
+  "source": "https://api.kamino.finance/v2/kamino-market",
+  "timestamp": "2026-09-27T11:50:33.3399858Z",
+  "ageSec": 0,
+  "live": false,
+  "cached": false,
+  "fallback": true,
+  "fallbackReason": "Offline recorded snapshot requested"
+ }
+}
