@@ -1,0 +1,23 @@
+{
+  "captured_slot": 451000134,
+  "usdc_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "live_spyx_mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+  "repo_mint_is_tslax": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+  "cpmm_pool_vs_usdc": null,
+  "jupiter_reference": {
+    "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+    "amount_in_raw": "1293600000",
+    "out_amount_usdc_raw": "10000565104",
+    "tag": "market_XsoC_SPYx_approx_10k"
+  },
+  "deep_clmm": {
+    "pool": "6truu3rZuiB9rKQg4VYC3Dt3QwV7DgwGqXrYUcrvnDDE",
+    "program": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+    "kind": "raydium_clmm",
+    "fee_bps": 10,
+    "reserve_spyx_raw": "178887088905",
+    "reserve_usdc_raw": "1934141178334",
+    "vault_spyx": "CiQuPAfYp5v82vijk6u7wqFnaZqtGdJfUUSjDKAtT9ML",
+    "vault_usdc": "3EmW8zJDHrfgwpQJAt1oD6nxgQZLUwrCRSKk8Gr3iKRF"
+  }
+}

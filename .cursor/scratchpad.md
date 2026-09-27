@@ -16,6 +16,33 @@ staleness policy. The oracle publishes the intended TTL so they can.
 ECV cannot be computed on-chain (inputs: Jupiter route impact, realized vol, NYSE session,
 TWAP), so the design is an attestation pattern: off-chain poster → `post_ecv` → PDA.
 
+### Phase 2 (2026-09-27, refined same day) — real route, real quote on chain
+
+Phase 1 publishes `liquidation_route` as a 32-byte label: a claim, not a route. Nothing on
+chain can check it, and the two execution terms of the model (`D` depth, `S` slippage) are
+numbers the poster asserts. Phase 2 makes the route a first-class on-chain object — the
+actual pool(s) a liquidation would trade through — validated at the moment it is written,
+and gives the program the ability to compute the execution side itself: quote, slippage,
+and the size at which a liquidation stops paying a liquidator.
+
+Two consumer entry points are requested, callable by CPI and by `simulateTransaction` off
+chain (Anchor return data, ≤ 1024 B):
+- `simulate_buy(mint, loan_amount)` → `usdc_in` plus the execution params
+- `simulate_liquidation_profitability_bound(mint, liquidation_incentive_bps)`
+
+Session, volatility, TWAP and price staleness stay off chain — none of them is observable
+from a Solana account. Phase 2 therefore splits the model along the only honest line:
+execution terms measured on chain, market-state terms attested by the poster.
+
+Scope guard: the five outputs in `src/ecv/model.mjs` are untouched (AGENTS.md rule 1) and
+no file outside `onchain/*` changes (agent G row). Phase 1 tasks T8/T9 stay open and
+independent.
+
+This pass re-verified two facts that the first draft treated as research:
+Kamino's incentive is in bps (with a percent protocol cut — challenge 14), and live SPYx
+depth is almost entirely CLMM (challenge 11 / T11). D1–D8 are recommendations, not
+answers — T10 is the confirmation gate.
+
 ## Key Challenges and Analysis
 
 1. **Zero-deps rule (AGENTS.md rule 2) vs. a Solana client.** Sending a tx needs
@@ -44,6 +71,101 @@ TWAP), so the design is an attestation pattern: off-chain poster → `post_ecv` 
    `anchor` missing. `investiatech` is the designated Rust/Anchor collaborator per AGENTS.md.
 8. **File ownership.** No agent row covers `onchain/*`. Add row G to the AGENTS.md table.
    `src/ecv/*` is never touched by this plan.
+
+### Phase 2 challenges (2026-09-27)
+
+9. **Solana has no read-only view calls.** The only mechanism is an ordinary instruction that
+   mutates nothing and writes `set_return_data` (Anchor: a non-`()` return type, which lands in
+   the IDL as `returns` and generates `ecv_oracle::cpi::simulate_buy(...) -> Result<Return<T>>`
+   for consumers). Limits that follow: return payload ≤ 1024 bytes, the result is only readable
+   by the *immediate* caller, and off-chain readers must use `simulateTransaction` (a real tx
+   would pay fees for a computation with no effect). The instruction needs no signer.
+10. **A quote needs the pool accounts, and the caller must supply them.** The program cannot
+    load accounts by pubkey; every account it reads must be in the instruction. So both views
+    take the route's pool accounts as `remaining_accounts` in a documented order, and verify
+    each one equals the pubkey stored in `RouteRecord`. A CPI consumer (a lender) must
+    therefore read `RouteRecord` first to build its account list — which is fine, it already
+    reads `EcvRecord`. This is the main ergonomic cost of moving quoting on chain and it is
+    unavoidable.
+11. **Which AMM math — venue evidence 2026-09-27.** Constant-product (Raydium CP-Swap) is
+    ~150 lines of exact u128 math over two vault balances plus a fee. Concentrated liquidity
+    (Orca Whirlpool, Raydium CLMM, Meteora DLMM) needs sqrt-price math *and* tick-array
+    traversal to be correct; skipping the tick arrays and assuming constant `liquidity`
+    **overestimates** depth, which is the wrong direction for a risk system and worse than
+    the current honest label. Live SPYx books (DexPaprika / Solana Compass, 2026-09-27) are
+    almost entirely CLMM: Raydium CLMM SPYx/USDC pools in the $80k–$2.4M range, Orca
+    Whirlpools around $15k–$200k, Meteora DLMM thin, Raydium CPMM SPYx/USDC only ~$6–7k.
+    A CPMM-only oracle would therefore quote a pool a real liquidation would not use.
+    CPMM-first remains the cheapest way to make route storage, validation, the CPI view and
+    the binary search all real — but it is a scaffold, and T11 may kill it if no usable
+    CPMM pool exists for the mint we actually key on. See D2.
+12. **Devnet has no pools, and we cannot deploy.** Route validation reads live pool accounts,
+    so it cannot succeed on devnet. Development and tests therefore run on LiteSVM with real
+    mainnet pool accounts committed as fixtures, plus `solana-test-validator --clone <pool>
+    --url mainnet-beta` for manual runs. Separately, the devnet program `5nsd…` has upgrade
+    authority `DtmWopz…` (investiatech), not our key — Phase 2 cannot be deployed to devnet
+    from this machine at all. See D7.
+13. **Layout changes.** `EcvRecord` layout is a frozen contract with the encoder and with the
+    record already on chain, so the route goes in a **new `RouteRecord` PDA** `["route", mint]`
+    rather than into `EcvRecord`; it also has a completely different write cadence (a route
+    changes rarely, ECV posts every ~15 s). `Config` is a different story: no `Config` account
+    exists on any cluster yet (see T8 notes), so extending it now is free. Both layout tests
+    must be updated deliberately, not incidentally. See D4.
+14. **Kamino incentive units — verified 2026-09-27, the answer is bps, with a caveat.**
+    `klend`'s `ReserveConfig` stores `min_liquidation_bonus_bps: u16`,
+    `max_liquidation_bonus_bps: u16`, `bad_debt_liquidation_bonus_bps: u16` — so a bps argument
+    is right. But the effective bonus is not one field: `calculate_liquidation_bonus()`
+    interpolates between min and max by how far the obligation's LTV exceeds its liquidation
+    threshold, capped near insolvency by the bad-debt bonus. And the protocol's cut is in
+    **percent**, not bps: `protocol_liquidation_fee_pct: u8`, charged on the bonus portion only
+    — `bonus = amount_liquidated - amount_liquidated / (1 + b)`,
+    `protocol_fee = ceil(bonus * pct / 100)`, floor of 1 token unit. The liquidator's net
+    multiplier is therefore `1 + b * (1 - pct/100)`, i.e. net incentive `b_net = b * (1 - pct/100)`.
+    Consequence for the requested API: a single `liquidation_incentive_bps` argument is only
+    correct if the caller has already netted the protocol fee. See D3.
+    Note the unit clash on our side: `params.mjs` has `liquidationBonusPct: 5` (percent), so the
+    poster must convert; the param itself stays off chain.
+    Sources: `Kamino-Finance/klend` `programs/klend/src/state/reserve.rs`,
+    `state/liquidation_operations.rs` (`calculate_liquidation_bonus`,
+    `calculate_protocol_liquidation_fee`).
+15. **The profitability bound, derived.** A liquidator repays `repay` USDC of debt and receives
+    collateral worth `repay * (1 + b_net)` valued at the lender's oracle price `P_oracle`, i.e.
+    `q = repay * (1 + b_net) / P_oracle` tokens. It then sells `q` through the route for
+    `usdc_out(q)`. The trade pays iff `usdc_out(q) ≥ repay`, which rearranges to
+    `exec_price(q) / P_oracle ≥ 1 / (1 + b_net)`; when `P_oracle` equals the pool mid this is
+    exactly `impact(q) ≤ b_net / (1 + b_net)`. `usdc_out` is monotone decreasing in average
+    price, so the bound is found by binary search over `repay` (~24 iterations of integer math).
+    The bound needs `P_oracle` as an input (pass 0 to mean "use the pool mid", which isolates
+    pure slippage). This is the number that makes `max_borrow` falsifiable: if
+    `max_borrow > max_profitable_repay_usdc`, the position has a size at which nobody will
+    liquidate it.
+16. **`simulate_buy(mint, loan_amount)` is ambiguous** and must be pinned before coding. If
+    `loan_amount` were USDC, `usdc_in` would just equal it, so `loan_amount` presumably counts
+    collateral-token base units and the call is an ExactOut quote: "what does it cost in USDC to
+    acquire this much of the token". See D1. Note the model's own `D`/`S` terms need the
+    opposite direction (ExactIn, token → USDC), which the bound computes internally anyway; see
+    D8 on whether to expose it.
+17. **No floats on chain.** All math is `u128` intermediates with explicit rounding direction:
+    round *against* the protocol everywhere (quotes round down, costs round up), so a bug biases
+    conservative. Prices cannot be `f64`; fixed-point scaling and the token's own `decimals`
+    (8 for xStocks, 6 for USDC) must be pinned in the design, not discovered in the code.
+18. **Compute budget and rule 4.** A binary search over multi-hop integer math plus account
+    reads costs real CU; consumers need a documented number, so every test records
+    `compute_units_consumed`. And every new bound (max hops, search iterations, minimum vault
+    balance, allowed AMM program ids) is a parameter in `Config` or a `#[constant]`, never a
+    literal buried in a handler.
+19. **New Cargo deps.** Validating that a pool's vaults hold the right mints means deserializing
+    SPL token accounts, i.e. `anchor-spl`. Allowed (AGENTS.md rule 2 scopes zero-deps to `src/`
+    and `web/`; `onchain/` is governed by `Cargo.toml`), but it grows the `.so` and must be
+    justified in the PR. The alternative is hand-rolled offset parsing — smaller, more brittle.
+20. **Two SPYx mints.** The poster keys `EcvRecord` on
+    `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB` (copied from `src/data/jupiter.mjs`, already
+    flagged VERIFY). Market data and DexPaprika list
+    `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W` as the live SPYx. T11 must quote both and
+    record which one Jupiter actually routes; quoting the wrong mint makes every fixture
+    and every view number fiction. Out of Phase 2 scope to change `MINTS` (that is
+    `src/data/*`, agent B). The oracle itself does not care — it keys on whatever pubkey
+    the poster passes.
 
 ## On-chain design (frozen for this PoC)
 
@@ -80,6 +202,55 @@ onchain/
   README.md                         # po polsku: jak uruchomić, co jest w PDA
 ```
 (Outdated original layout had `tests/ecv_oracle.ts`, `client/*.mjs`, `package.json`.)
+
+## On-chain design — Phase 2 (frozen 2026-09-27 by T10 defaults)
+
+`EcvRecord` and the five outputs are unchanged. `post_ecv` gains accounts and checks in T20
+(D6) but keeps its arguments and its record layout.
+
+`Config` gains (no `Config` exists on chain yet, so this is a free extension):
+`usdc_mint: Pubkey`, `allowed_amm_programs: [Pubkey; 4]`, `allowed_amm_count: u8`,
+`max_route_staleness_sec: u32`, `min_vault_balance_usdc: u64`. All set at `initialize`
+by the authority; no literals in handlers.
+
+New account `RouteRecord` — PDA seeds `["route", mint]`:
+```
+mint: Pubkey, mint_decimals: u8, hop_count: u8,
+hops: [RouteHop; 2],                 // MAX_HOPS = 2 (D5)
+label: [u8; 32],                     // same label as EcvRecord.liquidation_route
+updated_at: i64, updated_slot: u64, bump: u8
+
+RouteHop = { pool: Pubkey, kind: u8, input_vault: Pubkey, output_vault: Pubkey,
+             input_mint: Pubkey, output_mint: Pubkey, fee_bps: u16, a_to_b: bool }
+```
+`kind` is a `PoolKind` tag (`#[constant] POOL_KIND_*`); only the constant-product kind is
+implemented in this pass (D2), and an unimplemented kind is a hard error, never a silent
+fallback. `fee_bps` is read from the pool at validation time, never taken from the caller.
+
+New instructions:
+- `update_route(mint, hops, label)` — authority-only. Validation, all of it required:
+  hop count in `1..=MAX_HOPS`; `hops[0].input_mint == mint`; `hops[last].output_mint ==
+  config.usdc_mint`; `hops[i].output_mint == hops[i+1].input_mint`; for every hop the pool
+  account is present, owned by a program in `config.allowed_amm_programs`, its discriminator
+  matches `kind`, its vault pubkeys equal the stored ones, each vault's mint equals the hop's
+  declared mint, and both vault balances are non-zero (USDC side ≥ `min_vault_balance_usdc`).
+  Stamps `updated_at` / `updated_slot` from `Clock`; emits `RouteUpdated`.
+- `simulate_buy(mint, loan_amount) -> SimulateBuyResult` — view. Reads `RouteRecord` +
+  the route's pool accounts, walks the hops, returns
+  `{ usdc_in, token_out, impact_bps, fee_usdc, mid_price_e6, hop_count, capped,
+     quoted_at_slot }`. `capped` means the route could not fill the requested size, in which
+  case `token_out < loan_amount` and the caller must treat the quote as a floor, not a price.
+- `simulate_liquidation_profitability_bound(mint, liquidation_incentive_bps,
+  oracle_price_e6) -> LiquidationBoundResult` — view. Binary search per challenge 15,
+  returns `{ max_profitable_repay_usdc, max_profitable_qty, impact_bps_at_bound,
+  breakeven_impact_bps, net_incentive_bps, bound_is_route_capped, iterations }`.
+
+Pure math lives in `programs/ecv_oracle/src/quote/` (`mod.rs`, `cpmm.rs`) with no Anchor and
+no account types, so it is unit-testable on the host and cross-checkable against a captured
+Jupiter quote.
+
+Still explicitly NOT included: executing swaps, holding funds, `check_borrow`, any vault,
+Pyth/Scope reads, computing session / volatility / TWAP on chain.
 
 ## High-level Task Breakdown
 
@@ -154,6 +325,78 @@ Each task is one Executor step. Do not start the next until the user verifies.
   Success: Solana Explorer (devnet) account page of the `EcvRecord` PDA shows the field
   false → true across two tx signatures with `posted_slot` advancing; README committed.
 
+### Phase 2 tasks (2026-09-27). Nothing here starts before D1–D8 are answered.
+
+- [x] **T10 — Decisions (user).** 2026-09-27: user said execute T10–T13; D1–D8 taken as
+  the recommended defaults (see Decisions). Design section frozen.
+
+- [x] **T11 — Venue fixtures.** Identify the pool a real SPYx liquidation would actually route
+  through (Jupiter `routePlan` for a $10k and a $100k sell is the source of truth) and capture
+  the pool account + both vault accounts from mainnet with `solana account --output json` into
+  `onchain/programs/ecv_oracle/tests/fixtures/pools/`. Record in the fixture dir: pool address,
+  AMM program id, pool kind, fee, vault balances, slot, and the Jupiter quote at both sizes.
+  Also quote **both** candidate mints (`XsDoVfq…` from `MINTS` and `XsoCS1T…` from market data)
+  and record which one Jupiter routes; the fixtures follow the mint that actually has a book.
+  Success: fixtures committed; the recorded Jupiter quote is the reference T12 must reproduce.
+  Note: live books are CLMM-dominated (challenge 11). This task may kill D2's CPMM-first
+  option if no usable CPMM pool exists for the mint we key on.
+
+- [x] **T12 — Pure quote math (TDD).** `src/quote/{mod,cpmm}.rs`: `quote_exact_in`,
+  `quote_exact_out`, `mid_price`, all `u128`, rounding always against the protocol, no Anchor
+  imports. Tests first. Cases: known-answer CPMM vectors, fee handling, exact_in/exact_out
+  round-trip consistency, zero and saturating inputs, and the T11 Jupiter quote reproduced
+  within a stated tolerance (the tolerance is itself a result to report).
+  Success: `cargo test -p ecv_oracle quote::` green; the Jupiter cross-check documented.
+
+- [x] **T13 — `Config` extension.** Add the five fields, extend `initialize` args, update
+  `config_layout_is_frozen` with a comment saying why the number changed. LiteSVM tests:
+  fields land as passed; an empty AMM whitelist is rejected.
+  Success: `cargo test` green; IDL shows the new `initialize` args.
+
+- [ ] **T14 — `RouteRecord` + `PoolKind` constants.** State struct, `InitSpace`, layout test
+  pinning the byte count, `#[constant] POOL_KIND_*`.
+  Success: `anchor build` green; layout test pins the size; no behaviour yet.
+
+- [ ] **T15 — `update_route` + validation.** The handler and every check from the design
+  section. LiteSVM tests using T11 fixtures: happy path writes the record and reads `fee_bps`
+  from the pool, plus one test per rejection path (wrong owner program, wrong discriminator,
+  vault/mint mismatch, broken hop chain, last hop not USDC, empty vault, non-authority signer).
+  Success: `cargo test` green with one named test per rejection; IDL lists `RouteRecord`.
+
+- [ ] **T16 — `simulate_buy`.** Handler + `SimulateBuyResult` + `set_return_data`. Mutates
+  nothing; verifies each supplied pool account against `RouteRecord`. LiteSVM tests assert the
+  decoded return data against T12's expectations, that a wrong/reordered pool account is
+  rejected, that an oversized `loan_amount` sets `capped`, and record `compute_units_consumed`.
+  Success: `cargo test` green; IDL shows `returns`; CU number written into the scratchpad.
+
+- [ ] **T17 — `simulate_liquidation_profitability_bound`.** Binary search per challenge 15,
+  `net_incentive_bps` handled per D3. Tests: the bound satisfies breakeven and one step above
+  it does not; monotone in the incentive; `oracle_price_e6 = 0` uses the pool mid;
+  `bound_is_route_capped` when the route runs out before breakeven; zero incentive → zero
+  bound; CU recorded.
+  Success: `cargo test` green; the bound compared against a hand-computed value in the test.
+
+- [ ] **T18 — Prove the CPI path.** Minimal second program `programs/ecv_consumer_test` that
+  CPI-calls both views via the generated `ecv_oracle::cpi` module and logs the decoded results.
+  LiteSVM test loads both `.so`. This is the only way to prove the "CPI view" claim rather than
+  assert it.
+  Success: the consumer's logs show the same numbers as the direct calls in T16/T17; combined
+  CU recorded.
+
+- [ ] **T19 — Poster + docs.** Poster gains a `route` subcommand that pushes a route from a
+  config file (pool addresses committed, not discovered at runtime). `onchain/README.md` (PL)
+  documents the `RouteRecord` PDA, the account order a CPI consumer must pass, the CU cost, the
+  Kamino bps/percent finding from challenge 14, and what the bound does and does not prove.
+  Success: localnet run against cloned mainnet pool accounts writes a route and both views
+  return sane numbers; README committed.
+
+- [ ] **T20 — (optional, needs D6) `post_ecv` cross-checks the poster.** `post_ecv` requires
+  the `RouteRecord`, rejects a label mismatch, and compares the poster's implied slippage
+  against the on-chain quote, failing outside `max_impact_deviation_bps`. This is where the
+  oracle stops trusting its own poster. Breaking change: `post_ecv`'s account list and the
+  poster both change.
+  Success: a test proves a poster lying about impact by more than the tolerance is rejected.
+
 ## Decisions
 
 2026-09-24 (user, T0):
@@ -182,6 +425,53 @@ Clarifications recorded:
   `check_borrow`. T8 shows the published field changing on the `EcvRecord` account page in
   Solana Explorer (devnet), not any enforcement.
 
+2026-09-27 (user, T10) — execute T10–T13; D1–D8 taken as recommended defaults:
+6. **D1:** `loan_amount` is collateral-token base units; quote is ExactOut; headline `usdc_in`.
+7. **D2:** constant-product math only in this pass; CLMM later behind `PoolKind`. T11 records
+   how far the CPMM pool is from the Jupiter route and may force a stop.
+8. **D3:** one `liquidation_incentive_bps` argument, **net of the protocol fee**.
+   Caller computes `b_net = bonus_bps * (100 - protocol_liquidation_fee_pct) / 100`.
+9. **D4:** new `RouteRecord` PDA `["route", mint]`. `EcvRecord` stays byte-identical.
+10. **D5:** `MAX_HOPS = 2`.
+11. **D6:** T20 after the views are proven; not in this first pass.
+12. **D7:** localnet with cloned mainnet pool accounts. Devnet stays Phase 1.
+13. **D8:** yes — expose `simulate_sell` as well (folded into T16).
+
+### Decisions needed for Phase 2 — ANSWERED 2026-09-27, kept for the reasoning
+
+- **D1 — `simulate_buy(mint, loan_amount)`: what is `loan_amount`?** Recommended:
+  collateral-token base units, and the call is an **ExactOut** quote returning the `usdc_in`
+  required to acquire them. If `loan_amount` is USDC instead, then `usdc_in == loan_amount` and
+  the interesting return is `token_out`, which is an ExactIn buy — a different instruction.
+  Blocks T16.
+- **D2 — Which AMM math first?** Recommended: constant-product only (one `PoolKind`), because it
+  makes route storage, validation, the CPI view and the binary search all real and testable at a
+  fraction of the cost, with CLMM added later behind the existing `kind` tag. The honest cost:
+  real xStocks depth is in Orca Whirlpool / Raydium CLMM / Meteora DLMM, so a CPMM-only oracle
+  quotes a pool that is not where a liquidation would actually go. T11 may force this decision.
+- **D3 — Kamino incentive argument.** Verified: bps is correct for the bonus (challenge 14), but
+  klend's protocol cut is `protocol_liquidation_fee_pct` in **percent** and it eats part of the
+  bonus. Recommended: keep the requested single `liquidation_incentive_bps` arg, define it
+  explicitly as the **net** bonus after the protocol fee, and have the poster/consumer do
+  `b_net = bonus_bps * (100 - pct) / 100`. Alternative: add a second `protocol_fee_pct: u8` arg
+  and net it on chain (fewer ways for a caller to get it wrong, one more arg).
+- **D4 — Route storage.** Recommended: new `RouteRecord` PDA `["route", mint]`, leaving
+  `EcvRecord` byte-identical. Alternative (`realloc` `EcvRecord`) breaks the frozen layout, the
+  encoder, and the record already on devnet.
+- **D5 — `MAX_HOPS`.** Recommended 2 (covers xStock → SOL → USDC; the hop loop is the same code
+  as one hop). 1 is smaller; 3+ is speculative.
+- **D6 — Does `post_ecv` start requiring the route (T20)?** Recommended: not in the first pass.
+  It is the most valuable trust upgrade in this plan, but it changes `post_ecv`'s accounts and
+  the poster, and it should land after the views are proven.
+- **D7 — Where does this run, and who deploys?** Devnet has no pools, so validation and both
+  views cannot work there; and the devnet program's upgrade authority is investiatech's key, not
+  ours. Recommended: develop and demo on localnet with mainnet pool accounts cloned
+  (`solana-test-validator --clone`), keep devnet on the Phase 1 build, and hand deployment to
+  investiatech when Phase 2 is green. Needs confirmation because it changes what the demo shows.
+- **D8 — Expose `simulate_sell` too?** The bound computes ExactIn token → USDC internally, so
+  exposing it is nearly free, and it is the direction the model's own `D` and `S` terms need.
+  Not requested, so not planned — say the word and it becomes part of T17.
+
 ## Project Status Board
 
 - [x] T0 Decisions
@@ -194,6 +484,17 @@ Clarifications recorded:
 - [x] T7 Poster — committed by user in `cab9da4`
 - [ ] T8 Devnet + docs — README written; posts pending faucet
 - [ ] T9 Periodic poster — `--every-sec` implemented; awaiting user verification
+- [x] T10 Phase 2 decisions D1–D8 — defaults accepted 2026-09-27
+- [x] T11 Venue fixtures — done 2026-09-27, awaiting user validation after T13
+- [x] T12 Pure quote math — done 2026-09-27
+- [x] T13 Config extension — done 2026-09-27
+- [ ] T14 RouteRecord
+- [ ] T15 update_route + validation
+- [ ] T16 simulate_buy
+- [ ] T17 simulate_liquidation_profitability_bound
+- [ ] T18 CPI proof
+- [ ] T19 Poster + docs
+- [ ] T20 (optional) post_ecv cross-check
 
 ## Current Status / Progress Tracking
 
@@ -360,6 +661,24 @@ EcvRecord SPYx **nie** istnieją. `anchor deploy` pominięty: upgrade authority 
 `DtmWopz…`, nie `7JdE2…`. Poster `--init --cluster devnet` nie ruszył: signer ma 0 SOL,
 `requestAirdrop` 429.
 
+2026-09-27 — Phase 2 planned (Planner). Nothing implemented. Added: Background §Phase 2,
+challenges 9–19, design section "On-chain design — Phase 2 (PROPOSED)", tasks T10–T20,
+decisions D1–D8. Only research done: klend's liquidation-bonus units verified against source
+(challenge 14). Phase 1 tasks T8/T9 are still open and independent of this.
+
+2026-09-27 — Phase 2 refined (Planner), same request restated by user. Nothing implemented.
+Re-verified Kamino units against official docs (`kamino.com/docs/curators/markets/
+reserve-parameters` and `liquidations`) plus `klend` `liquidation_operations.rs`: bonus is
+bps, protocol cut is percent. Re-verified SPYx venues: depth is Raydium CLMM / Orca, CPMM
+is ~$6–7k (challenge 11). Noted two SPYx mint pubkeys (challenge 20). Design section put
+back to PROPOSED — D1–D8 were never confirmed by the user. T10 is the gate.
+
+2026-09-27 — T10–T13 done (Executor). Design frozen with recommended defaults.
+T11: live SPYx is `XsoCS1T…`; repo `XsDoVfq…` is TSLAx; no CPMM vs USDC.
+T12: CPMM math + documented ~3872 bps optimistic gap vs Jupiter.
+T13: Config 210 B, initialize args extended, empty whitelist rejected.
+Awaiting user validation.
+
 ## Executor's Feedback or Assistance Requests
 
 2026-09-26 — T9 in progress. Poster gained `--every-sec N`. One-shot path unchanged.
@@ -380,6 +699,28 @@ T8 docs done (uncommitted `onchain/README.md`). Explorer artefact (false→true 
 czeka na ~0.01 SOL devnet na `7JdE2aji83yFmsn9QNtbBYJ9RTpiP3FjLmpnuz2SimKR`. Po doładowaniu
 na https://faucet.solana.com powiedz „post T8” — odpalę `--init` + dwa posty i wpiszę
 sygnatury do README. Pierwszy `--init` ustawi oracle authority na ten signer.
+
+2026-09-27 (Executor) — T10–T13 done, **awaiting user validation before T14**.
+
+T10: D1–D8 taken as recommended defaults (user: execute through T13).
+
+T11: fixtures in `onchain/programs/ecv_oracle/tests/fixtures/pools/`.
+- Repo `MINTS.SPYx` `XsDoVfq…` is **TSLAx**, not SPYx. Live SPYx is `XsoCS1T…`.
+- Jupiter live-SPYx $10k sell: out 10000565104 USDC raw, hops Raydium CLMM + Byreal.
+  $100k: 99917151970, hops Raydium CLMM + Byreal + Raydium CLMM.
+- Raydium `poolType=standard` vs USDC: **0 pools**. No honest CPMM venue. D2 not
+  killed as a code path (user asked to continue through T13) but `update_route`
+  cannot point at a real SPYx/USDC CPMM. CLMM pool+vault accounts captured.
+
+T12: `quote/{mod,cpmm}.rs`, 15 unit tests green. Jupiter×CPMM-from-vaults gap
+asserted: 13_872_302_207 vs 10_000_565_104 (~3872 bps optimistic). Do not "fix".
+
+T13: `Config` INIT_SPACE 37 → 210 (commented). `initialize` takes the five new
+args. Empty whitelist → `EmptyAmmWhitelist` (6001). Poster `--init` updated so
+the workspace still compiles. IDL lists the new args.
+
+`cargo test --workspace` 35/35; `node --test src/ecv/*.test.mjs` 7/7.
+Please confirm T11–T13 before T14 (`RouteRecord`).
 
 2026-09-26 (user): `[programs.localnet]` re-added alongside `[programs.devnet]` in
 `Anchor.toml`, same program id `5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`. Provider
@@ -431,3 +772,31 @@ cluster stays `devnet` (investiatech's default).
   from `onchain/` when you need test stdout.
 - Host `rust-toolchain.toml` does not affect `anchor build` (cargo-build-sbf uses the
   platform-tools compiler); it only governs `cargo test` and future host bins (poster).
+- Kamino `klend` liquidation incentive: the bonus is **bps**
+  (`min_liquidation_bonus_bps` / `max_liquidation_bonus_bps` / `bad_debt_liquidation_bonus_bps`,
+  all `u16`, interpolated by how far LTV exceeds the liquidation threshold), but
+  `protocol_liquidation_fee_pct` is **percent** and is charged on the bonus portion only
+  (`bonus = amount_liquidated - amount_liquidated/(1+b)`, `fee = ceil(bonus * pct/100)`, min 1).
+  Net liquidator incentive is `b * (1 - pct/100)`. Our `params.mjs` `liquidationBonusPct` is in
+  percent — always state the unit when passing an incentive across the Node/Rust boundary.
+  Official docs match the source: `minLiquidationBonusBps` / `maxLiquidationBonusBps` /
+  `badDebtLiquidationBonusBps` are u16 0–10000; `protocolLiquidationFeePct` is u8 0–100.
+  Reference values in the liquidations doc: majors 300–500 / 700–1000 bps, long-tail
+  500–800 / 1500–2500 bps. Interpolation is by how far LTV exceeds the liquidation
+  threshold (`unhealthy_factor = user_ltv - max_allowed_ltv`), not a single field.
+- Two published SPYx mints exist (`XsDoVfq…` in this repo vs `XsoCS1T…` on DexPaprika /
+  CoinMarketCap). T11 must quote both before committing pool fixtures. Do not "fix" `MINTS`
+  from `onchain/` (agent G must not touch `src/*`).
+- T11 finding: `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB` is **TSLAx**. Live SPYx is
+  `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W`. Jupiter $10k-qty sell is the cheapest
+  discriminator (~$4.8k vs ~$10.0k).
+- Treating a Raydium CLMM vault pair as CPMM `k` overestimates a $10k SPYx sell by
+  ~3872 bps (13.87k vs 10.00k USDC). Assert the gap; never tighten the test toward
+  the Jupiter number.
+- CPMM `quote_exact_out` must invert both floors (k-curve, then fee) with two
+  `ceil_div`s. Uniswap V2's single `floor+1` still under-covers by 1 raw unit.
+- `mid_price_e6` / `impact_bps_exact_in` take `decimals_in` / `decimals_out`.
+  One side is always USDC 6. Mid is USDC raw per 1 whole of the other mint
+  (`reserve_usdc * 10^token_decimals / reserve_token`), not raw-out/raw-in.
+  Impact compares those USDC-per-whole prices; the bps ratio still cancels
+  decimals, but the mid itself was wrong without the scale.

@@ -18,6 +18,25 @@ use {
 /// caller on purpose: the program has no opinion about it.
 pub const MAX_STALENESS_SEC: u32 = 30;
 
+/// Mainnet USDC. Passed into `initialize`; the program does not hard-code it.
+pub const USDC_MINT: Pubkey = Pubkey::from_str_const("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+
+/// Raydium CP-Swap (constant-product). First-pass whitelist entry (D2).
+pub const RAYDIUM_CPMM_PROGRAM: Pubkey =
+    Pubkey::from_str_const("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C");
+
+/// Route TTL supplied at initialize. Routes change rarely; 1 day is a prior.
+pub const MAX_ROUTE_STALENESS_SEC: u32 = 86_400;
+
+/// Minimum USDC-side vault balance supplied at initialize (1000 USDC, 6 dec).
+pub const MIN_VAULT_BALANCE_USDC: u64 = 1_000_000_000;
+
+pub fn baseline_amm_whitelist() -> ([Pubkey; 4], u8) {
+    let mut programs = [Pubkey::default(); 4];
+    programs[0] = RAYDIUM_CPMM_PROGRAM;
+    (programs, 1)
+}
+
 pub struct Env {
     pub svm: LiteSVM,
     pub program_id: Pubkey,
@@ -61,9 +80,41 @@ pub fn send(env: &mut Env, ix: Instruction, signer: &Keypair) -> Result<(), Stri
 }
 
 pub fn send_initialize(env: &mut Env, authority: &Keypair, max_staleness_sec: u32) -> Result<(), String> {
+    let (allowed_amm_programs, allowed_amm_count) = baseline_amm_whitelist();
+    send_initialize_with(
+        env,
+        authority,
+        max_staleness_sec,
+        USDC_MINT,
+        allowed_amm_programs,
+        allowed_amm_count,
+        MAX_ROUTE_STALENESS_SEC,
+        MIN_VAULT_BALANCE_USDC,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn send_initialize_with(
+    env: &mut Env,
+    authority: &Keypair,
+    max_staleness_sec: u32,
+    usdc_mint: Pubkey,
+    allowed_amm_programs: [Pubkey; 4],
+    allowed_amm_count: u8,
+    max_route_staleness_sec: u32,
+    min_vault_balance_usdc: u64,
+) -> Result<(), String> {
     let ix = Instruction::new_with_bytes(
         env.program_id,
-        &ecv_oracle::instruction::Initialize { max_staleness_sec }.data(),
+        &ecv_oracle::instruction::Initialize {
+            max_staleness_sec,
+            usdc_mint,
+            allowed_amm_programs,
+            allowed_amm_count,
+            max_route_staleness_sec,
+            min_vault_balance_usdc,
+        }
+        .data(),
         ecv_oracle::accounts::Initialize {
             authority: authority.pubkey(),
             config: env.config,

@@ -1,0 +1,105 @@
+{
+  "captured_note": "Jupiter lite-api ExactIn token->USDC. amount is raw 8-decimal units (~$10k / ~$100k at then-current price).",
+  "quotes": [
+    {
+      "tag": "repo_XsDo_TSLAx_approx_10k",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "amount_in_raw": "1293600000",
+      "out_amount": "4825182600",
+      "price_impact_pct": "0",
+      "route": [
+        {
+          "label": "Riptide",
+          "ammKey": "HxNaPy1oYA8xkyg2GSSzcF3VwEX5bH6Mo6BLLAHF3Ack",
+          "inputMint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "1293600000",
+          "outAmount": "4825182600"
+        }
+      ]
+    },
+    {
+      "tag": "repo_XsDo_TSLAx_approx_100k",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "amount_in_raw": "12936000000",
+      "out_amount": "48202894664",
+      "price_impact_pct": "0.0009877834516639793967677425",
+      "route": [
+        {
+          "label": "Riptide",
+          "ammKey": "HxNaPy1oYA8xkyg2GSSzcF3VwEX5bH6Mo6BLLAHF3Ack",
+          "inputMint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "11254320000",
+          "outAmount": "41937956948"
+        },
+        {
+          "label": "Raydium CLMM",
+          "ammKey": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF",
+          "inputMint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "1681680000",
+          "outAmount": "6264937716"
+        }
+      ]
+    },
+    {
+      "tag": "market_XsoC_SPYx_approx_10k",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "amount_in_raw": "1293600000",
+      "out_amount": "10000565104",
+      "price_impact_pct": "0.0004015396018648440118450462",
+      "route": [
+        {
+          "label": "Raydium CLMM",
+          "ammKey": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw",
+          "inputMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "1086624000",
+          "outAmount": "8400453632"
+        },
+        {
+          "label": "Byreal",
+          "ammKey": "27x6aSxcAm6SoazoxmmTtFg6fWMQuNmdKJmHagq1DUZy",
+          "inputMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "206976000",
+          "outAmount": "1600111472"
+        }
+      ]
+    },
+    {
+      "tag": "market_XsoC_SPYx_approx_100k",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "amount_in_raw": "12936000000",
+      "out_amount": "99917151970",
+      "price_impact_pct": "0.0012861249547793845803843113",
+      "route": [
+        {
+          "label": "Raydium CLMM",
+          "ammKey": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw",
+          "inputMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "4010160000",
+          "outAmount": "30983804489"
+        },
+        {
+          "label": "Byreal",
+          "ammKey": "27x6aSxcAm6SoazoxmmTtFg6fWMQuNmdKJmHagq1DUZy",
+          "inputMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "776160000",
+          "outAmount": "5996589216"
+        },
+        {
+          "label": "Raydium CLMM",
+          "ammKey": "6truu3rZuiB9rKQg4VYC3Dt3QwV7DgwGqXrYUcrvnDDE",
+          "inputMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "inAmount": "8149680000",
+          "outAmount": "62936758265"
+        }
+      ]
+    }
+  ]
+}

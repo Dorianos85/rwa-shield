@@ -8,6 +8,11 @@ pub const CONFIG_SEED: &[u8] = b"config";
 #[constant]
 pub const ECV_SEED: &[u8] = b"ecv";
 
+/// Length of `Config.allowed_amm_programs`. Set at `initialize`; never a
+/// literal in a handler.
+#[constant]
+pub const MAX_ALLOWED_AMM_PROGRAMS: u8 = 4;
+
 // `EcvRecord.breaker_reason` codes. Mirror `breakerTerm()` in
 // `src/ecv/model.mjs`; exported to the IDL so integrators need no side table.
 

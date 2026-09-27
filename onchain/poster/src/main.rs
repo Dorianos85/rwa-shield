@@ -6,7 +6,9 @@
 //! Usage (defaults in brackets):
 //!   poster [--api http://localhost:8787] [--symbol SPYx] [--query k=v&k=v] [--live]
 //!          [--cluster localnet|devnet|<http url>] [--keypair ~/.config/solana/id.json]
-//!          [--init] [--max-staleness-sec 30] [--every-sec N] [--dry-run]
+//!          [--init] [--max-staleness-sec 30] [--usdc-mint <pk>]
+//!          [--allowed-amm <pk>] [--max-route-staleness-sec 86400]
+//!          [--min-vault-balance-usdc 1000000000] [--every-sec N] [--dry-run]
 //!
 //! `--every-sec N` repeats the post every N seconds (Ctrl-C to stop) so
 //! `posted_at` stays inside `max_staleness_sec`. N must be shorter than that
@@ -33,6 +35,11 @@ const MINTS: &[(&str, &str)] = &[
     ("NVDAx", "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh"),
 ];
 
+/// Mainnet USDC. Poster default for `--init`; the program does not hard-code it.
+const DEFAULT_USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+/// Raydium CP-Swap. First-pass whitelist (D2). Override with `--allowed-amm`.
+const DEFAULT_ALLOWED_AMM: &str = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
+
 struct Args {
     api: String,
     symbol: String,
@@ -42,6 +49,10 @@ struct Args {
     keypair: String,
     init: bool,
     max_staleness_sec: u32,
+    usdc_mint: String,
+    allowed_amm: String,
+    max_route_staleness_sec: u32,
+    min_vault_balance_usdc: u64,
     every_sec: Option<u64>,
     dry_run: bool,
 }
@@ -57,6 +68,10 @@ fn parse_args() -> Result<Args> {
         init: false,
         // Same default as `maxStalenessSec` in src/ecv/params.mjs; override with the flag.
         max_staleness_sec: 30,
+        usdc_mint: DEFAULT_USDC_MINT.into(),
+        allowed_amm: DEFAULT_ALLOWED_AMM.into(),
+        max_route_staleness_sec: 86_400,
+        min_vault_balance_usdc: 1_000_000_000,
         every_sec: None,
         dry_run: false,
     };
@@ -72,6 +87,14 @@ fn parse_args() -> Result<Args> {
             "--keypair" => a.keypair = shellexpand_home(&val("--keypair")?),
             "--init" => a.init = true,
             "--max-staleness-sec" => a.max_staleness_sec = val("--max-staleness-sec")?.parse()?,
+            "--usdc-mint" => a.usdc_mint = val("--usdc-mint")?,
+            "--allowed-amm" => a.allowed_amm = val("--allowed-amm")?,
+            "--max-route-staleness-sec" => {
+                a.max_route_staleness_sec = val("--max-route-staleness-sec")?.parse()?
+            }
+            "--min-vault-balance-usdc" => {
+                a.min_vault_balance_usdc = val("--min-vault-balance-usdc")?.parse()?
+            }
             "--every-sec" => {
                 let n: u64 = val("--every-sec")?.parse()?;
                 if n == 0 {
@@ -222,6 +245,10 @@ fn ensure_config(program: &anchor_client::Program<Arc<Keypair>>, payer: &Keypair
         }
         Err(_) if args.init => {
             println!("config {config_pda} missing - initializing with max_staleness_sec={}", args.max_staleness_sec);
+            let usdc_mint = Pubkey::from_str(&args.usdc_mint).context("invalid --usdc-mint")?;
+            let amm = Pubkey::from_str(&args.allowed_amm).context("invalid --allowed-amm")?;
+            let mut allowed_amm_programs = [Pubkey::default(); 4];
+            allowed_amm_programs[0] = amm;
             let sig = program
                 .request()
                 .accounts(ecv_oracle::accounts::Initialize {
@@ -229,7 +256,14 @@ fn ensure_config(program: &anchor_client::Program<Arc<Keypair>>, payer: &Keypair
                     config: config_pda,
                     system_program: system_program::ID,
                 })
-                .args(ecv_oracle::instruction::Initialize { max_staleness_sec: args.max_staleness_sec })
+                .args(ecv_oracle::instruction::Initialize {
+                    max_staleness_sec: args.max_staleness_sec,
+                    usdc_mint,
+                    allowed_amm_programs,
+                    allowed_amm_count: 1,
+                    max_route_staleness_sec: args.max_route_staleness_sec,
+                    min_vault_balance_usdc: args.min_vault_balance_usdc,
+                })
                 .send()
                 .context("initialize failed")?;
             println!("initialize tx: {sig}");

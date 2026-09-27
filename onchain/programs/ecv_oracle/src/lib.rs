@@ -1,6 +1,7 @@
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub mod quote;
 pub mod state;
 
 use anchor_lang::prelude::*;
@@ -15,8 +16,25 @@ declare_id!("5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc");
 pub mod ecv_oracle {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, max_staleness_sec: u32) -> Result<()> {
-        crate::instructions::initialize::handle_initialize(ctx, max_staleness_sec)
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        max_staleness_sec: u32,
+        usdc_mint: Pubkey,
+        allowed_amm_programs: [Pubkey; 4],
+        allowed_amm_count: u8,
+        max_route_staleness_sec: u32,
+        min_vault_balance_usdc: u64,
+    ) -> Result<()> {
+        crate::instructions::initialize::handle_initialize(
+            ctx,
+            max_staleness_sec,
+            usdc_mint,
+            allowed_amm_programs,
+            allowed_amm_count,
+            max_route_staleness_sec,
+            min_vault_balance_usdc,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

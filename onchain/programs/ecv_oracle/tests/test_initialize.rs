@@ -1,7 +1,7 @@
 mod common;
 
 use {
-    anchor_lang::Space,
+    anchor_lang::{prelude::Pubkey, Space},
     common::*,
     solana_signer::Signer,
 };
@@ -24,6 +24,11 @@ fn initialize_creates_config_with_signer_as_authority() {
     let state = read_config(&env);
     assert_eq!(state.authority, authority.pubkey());
     assert_eq!(state.max_staleness_sec, MAX_STALENESS_SEC);
+    assert_eq!(state.usdc_mint, USDC_MINT);
+    assert_eq!(state.allowed_amm_count, 1);
+    assert_eq!(state.allowed_amm_programs[0], RAYDIUM_CPMM_PROGRAM);
+    assert_eq!(state.max_route_staleness_sec, MAX_ROUTE_STALENESS_SEC);
+    assert_eq!(state.min_vault_balance_usdc, MIN_VAULT_BALANCE_USDC);
     assert_eq!(
         state.bump,
         config_pda(&env.program_id).1,
@@ -48,4 +53,31 @@ fn initialize_twice_fails() {
     let state = read_config(&env);
     assert_eq!(state.authority, first.pubkey());
     assert_eq!(state.max_staleness_sec, MAX_STALENESS_SEC);
+}
+
+#[test]
+fn initialize_rejects_empty_amm_whitelist() {
+    let mut env = setup();
+    let authority = funded_keypair(&mut env.svm);
+
+    let err = send_initialize_with(
+        &mut env,
+        &authority,
+        MAX_STALENESS_SEC,
+        USDC_MINT,
+        [Pubkey::default(); 4],
+        0,
+        MAX_ROUTE_STALENESS_SEC,
+        MIN_VAULT_BALANCE_USDC,
+    )
+    .expect_err("empty whitelist must fail");
+    println!("empty whitelist rejected with: {err}");
+    assert!(
+        err.contains("Custom(6001)") || err.contains("EmptyAmmWhitelist"),
+        "expected EmptyAmmWhitelist (6001), got {err}"
+    );
+    assert!(
+        env.svm.get_account(&env.config).is_none(),
+        "failed initialize must not leave a Config"
+    );
 }

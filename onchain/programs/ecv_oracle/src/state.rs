@@ -1,18 +1,33 @@
 use anchor_lang::prelude::*;
 
+use crate::constants::MAX_ALLOWED_AMM_PROGRAMS;
+
 /// Oracle configuration. One per deployment, PDA seeds `["config"]`.
 ///
 /// The oracle only PUBLISHES; it never enforces. `max_staleness_sec` is the
 /// TTL the poster commits to, exported so consumers can apply their own
 /// staleness check against `EcvRecord.posted_at`. Mirrors
 /// `maxStalenessSec` in `src/ecv/params.mjs` - not a literal in program code.
+///
+/// Phase 2 fields (`usdc_mint`, the AMM whitelist, `max_route_staleness_sec`,
+/// `min_vault_balance_usdc`) are also set at `initialize`. No `Config`
+/// existed on any cluster when they were added, so this is not a migration.
 #[account]
 #[derive(InitSpace)]
 pub struct Config {
-    /// Only this key may call `post_ecv`. Single attester in the PoC.
+    /// Only this key may call `post_ecv` / `update_route`. Single attester in the PoC.
     pub authority: Pubkey,
-    /// Intended freshness window for records, in seconds.
+    /// Intended freshness window for ECV records, in seconds.
     pub max_staleness_sec: u32,
+    /// Quote currency for every stored route. Last hop must end here.
+    pub usdc_mint: Pubkey,
+    /// Programs allowed to own a hop's pool account. First `allowed_amm_count` slots are live.
+    pub allowed_amm_programs: [Pubkey; MAX_ALLOWED_AMM_PROGRAMS as usize],
+    pub allowed_amm_count: u8,
+    /// Intended freshness window for `RouteRecord`, in seconds. Published, not enforced.
+    pub max_route_staleness_sec: u32,
+    /// USDC-side vault balance below this is rejected at `update_route`.
+    pub min_vault_balance_usdc: u64,
     pub bump: u8,
 }
 
@@ -51,8 +66,12 @@ mod tests {
     // account on chain. If one of these fails, you changed the layout.
     #[test]
     fn config_layout_is_frozen() {
-        // authority 32 + max_staleness_sec 4 + bump 1
-        assert_eq!(Config::INIT_SPACE, 37);
+        // Phase 2 (T13): no Config existed on any cluster, so extending here
+        // was free. Was 37 (authority 32 + max_staleness_sec 4 + bump 1).
+        // Now: authority 32 + max_staleness_sec 4 + usdc_mint 32
+        // + allowed_amm_programs 128 + allowed_amm_count 1
+        // + max_route_staleness_sec 4 + min_vault_balance_usdc 8 + bump 1
+        assert_eq!(Config::INIT_SPACE, 210);
     }
 
     #[test]
