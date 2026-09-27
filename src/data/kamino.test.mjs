@@ -1,12 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { decodeReserveConfig, getKaminoMarkets, getKaminoReserve, normalizeReserve, provenance } from './kamino.mjs';
+import { decodeReserveConfig, getKaminoMarkets, getKaminoReserve, getKaminoReservePair, normalizeReserve, provenance, USDC_MINT } from './kamino.mjs';
 import { getXstockAsset } from './xstocks.mjs';
 import { getLiquidity, normalizeJupiterQuote } from './liquidity.mjs';
 
 const snapshot = JSON.parse(readFileSync(new URL('../../data/kamino.snapshot.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
 const offline = { offline: true, now: Date.parse(snapshot.capturedAt) + 1000 };
+
+test('USDC funding reserve is canonical and independent of the selected collateral', async () => {
+  const a = await getKaminoReservePair({ ...offline, symbol: 'TSLAx' });
+  const b = await getKaminoReservePair({ ...offline, symbol: 'SPYx' });
+  assert.deepEqual(a.fundingReserve, b.fundingReserve);
+  assert.equal(a.fundingReserve.mint, USDC_MINT);
+  assert.equal(a.fundingReserve.symbol, 'USDC');
+  assert.equal(a.fundingReserve.market, a.reserve.market);
+  assert.equal(a.fundingReserve.decimals, 6);
+  const recorded = snapshot.markets[0].metrics.find(row => row.liquidityTokenMint === USDC_MINT);
+  assert.equal(a.fundingReserve.currentUtilization, Number(recorded.totalBorrowUsd) / Number(recorded.totalSupplyUsd));
+  assert.notEqual(a.fundingReserve.currentUtilization, a.reserve.currentUtilization);
+  assert.equal(a.fundingReserve.source.timestamp, a.reserve.source.timestamp);
+  assert.ok(a.fundingReserve.borrowRateCurve.length > 0);
+});
+
+test('a market without USDC returns unavailable instead of another reserve', async () => {
+  const result = await getKaminoReservePair({ ...offline, market: snapshot.markets[1].config.lendingMarket });
+  assert.equal(result.reserve.symbol, 'SPYx');
+  assert.equal(result.fundingReserve, null);
+  assert.match(result.fundingReserveUnavailable, /No verified USDC/);
+});
 
 test('recorded official accounts decode units, caps, real curve, identity and thresholds', async () => {
   const reserve = await getKaminoReserve(offline);

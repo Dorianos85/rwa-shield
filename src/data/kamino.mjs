@@ -9,6 +9,7 @@ const TTL_MS = 60_000;
 const TIMEOUT_MS = 5_000;
 export const DEFAULT_MARKET = '5wJeMrUYECGq41fxRESKALVcHnNX26TAWy4W98yULsua';
 export const SUPPORTED_SYMBOLS = ['SPYx', 'QQQx', 'NVDAx', 'TSLAx', 'CRCLx'];
+export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const isAsset = row => SUPPORTED_SYMBOLS.includes(row.liquidityToken);
 const num = value => value !== null && value !== '' && Number.isFinite(Number(value)) ? Number(value) : null;
 const unavailable = reason => ({ value: null, available: false, reason });
@@ -107,7 +108,10 @@ export function normalizeReserve(row, bundle, { source, now = Date.now() } = {})
     oracleMaxAgeSec: num(oracle?.maxAgeInSeconds), oracleSource: priceSource,
     priceAgeAtCaptureSec: timestamp ? Math.max(0, (Date.parse(source.timestamp) - Date.parse(timestamp)) / 1000) : null,
     borrowApy: num(row.borrowApy), supplyApy: num(row.supplyApy), unavailable: fields, source,
-    notes: ['TVL means supplied USD, not net TVL. Available USD is supply minus borrow; protocol fees can differ from raw vault balance.', 'Borrow cap covers borrowing this token, not USDC loans secured by this collateral. Caps exclude elevation-group-specific limits.'],
+    notes: ['TVL means supplied USD, not net TVL. Available USD is supply minus borrow; protocol fees can differ from raw vault balance.',
+      row.liquidityTokenMint === USDC_MINT
+        ? 'USDC funding reserve for this market. Borrow cap and rate curve apply to USDC borrowing. Amounts are USD-valued at the reserve oracle price. Caps exclude elevation-group-specific limits.'
+        : 'Collateral reserve. Its LTV and liquidation threshold describe the selected xStock. Its token borrow cap does not limit USDC loans secured by this collateral.'],
   };
 }
 
@@ -176,4 +180,24 @@ export async function getKaminoReserve({ market = DEFAULT_MARKET, symbol = 'SPYx
   const row = bundle.metrics.find(r => r.liquidityToken === symbol);
   if (!row) throw new RangeError('Asset is not listed in this Kamino market');
   return normalizeReserve(row, bundle, { source, now: options.now });
+}
+
+/** Load collateral and USDC funding observations from the same market bundle. */
+export async function getKaminoReservePair({ market = DEFAULT_MARKET, symbol = 'SPYx', ...options } = {}) {
+  if (!SUPPORTED_SYMBOLS.includes(symbol)) throw new RangeError('Unknown xStock asset');
+  const { bundle, source } = await loadBundle(market, options);
+  const row = bundle.metrics.find(r => r.liquidityToken === symbol);
+  if (!row) throw new RangeError('Asset is not listed in this Kamino market');
+  const reserve = normalizeReserve(row, bundle, { source, now: options.now });
+  // Require both the symbol and canonical mint; never substitute another stablecoin.
+  const fundingRow = bundle.metrics.find(r => r.liquidityToken === 'USDC' && r.liquidityTokenMint === USDC_MINT);
+  let fundingReserve = null;
+  let fundingReserveUnavailable = 'No verified USDC reserve in the selected market observation';
+  if (fundingRow) {
+    try {
+      fundingReserve = normalizeReserve(fundingRow, bundle, { source, now: options.now });
+      fundingReserveUnavailable = null;
+    } catch (error) { fundingReserveUnavailable = `USDC reserve data invalid: ${error.message}`; }
+  }
+  return { reserve, fundingReserve, fundingReserveUnavailable };
 }

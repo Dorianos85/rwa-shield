@@ -1,7 +1,8 @@
 # Kamino × xStocks Risk Lab
 
-Panel porównuje parametry konkretnej rezerwy Kamino z odzyskiem egzekucyjnym
-testowanego zabezpieczenia. Nie jest oceną całego rynku ani rekomendacją inwestycyjną.
+Panel porównuje parametry zabezpieczenia xStock i wykorzystanie rezerwy USDC
+w tym samym rynku Kamino z odzyskiem egzekucyjnym testowanego zabezpieczenia.
+Nie jest oceną całego rynku ani rekomendacją inwestycyjną.
 
 ## Uruchomienie
 
@@ -59,9 +60,15 @@ oddzielne `RISK_LAB_BOUNDS` nie są celami kalibracji backtestu.
 
 ## Trzy niezależne poziomy
 
-1. **Rezerwa:** TVL oznacza dostarczoną wartość USD wybranej rezerwy. Przez cały
+1. **Finansowanie USDC:** TVL oznacza dostarczoną wartość USD rezerwy USDC
+   w wybranym rynku, zweryfikowanej przez symbol i canonical mint. Przez cały
    scenariusz pozostaje stałe. Borrowed = TVL × utilization; available = TVL ×
    (1 − utilization). To uproszczona księgowość scenariusza, nie odczyt salda vault.
+   USDC borrow/supply cap oraz krzywa oprocentowania pochodzą z tej rezerwy.
+   Kwoty pokazujemy w USD po cenie oracle, nie jako surową liczbę tokenów USDC.
+   LTV, próg likwidacji i oracle zabezpieczenia nadal pochodzą z wybranego xStocka.
+   Brak rezerwy USDC oznacza niedostępne utilization i zamkniętą bramkę kredytu,
+   także w sandboxie; dashboard nigdy nie podmienia jej na rezerwę zabezpieczenia.
 2. **Testowane zabezpieczenie:** domyślnie 100 000 USD według bazowej ceny
    referencyjnej. Liczba tokenów jest stała po przesunięciu NAV. AMM depth opisuje
    możliwości sprzedaży tych tokenów, a nie płynność rezerwy Kamino.

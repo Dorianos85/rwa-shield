@@ -105,6 +105,7 @@ function resetControls() {
   const policy = { ...DEFAULT_PARAMS.riskLab, ...app.baseline.rwaParams?.riskLab };
   $('utilization').max = String(policy.maxUtilization * 100);
   $('utilization').value = (r.reserve.currentUtilization ?? 0) * 100;
+  $('utilization').disabled = !finite(r.reserve.currentUtilization);
   const nav = r.asset.navPriceCurrent;
   $('navPrice').min = '0';
   $('navPrice').max = String(Math.max(1, (nav ?? 0) * policy.navRangeMultiplier));
@@ -161,13 +162,15 @@ function render() {
     const baseline = { ...app.baseline,
       asset: { ...app.baseline.asset, priceAgeSec: finite(actualAge) ? actualAge + elapsedSec : actualAge },
       execution: { ...app.baseline.execution, source: agedSource(app.baseline.execution.source) },
-      reserve: { ...app.baseline.reserve, source: agedSource(app.baseline.reserve.source) }
+      reserve: { ...app.baseline.reserve, source: agedSource(app.baseline.reserve.source) },
+      fundingReserve: app.baseline.fundingReserve ? { ...app.baseline.fundingReserve, source: agedSource(app.baseline.fundingReserve.source) } : null
     };
     const r = computeKaminoRiskScenario({ ...baseline, scenario: scenario() });
-    const { reserve, asset, execution, health, rwaShield: rwa, comparison } = r;
-    text('utilizationValue', pct(reserve.scenarioUtilization));
+    const { reserve, collateralReserve, asset, execution, health, rwaShield: rwa, comparison } = r;
+    text('utilizationValue', finite(reserve.currentUtilization) ? pct(reserve.scenarioUtilization) : 'Unavailable');
     text('utilizationBase', `Current ${pct(reserve.currentUtilization)}`);
-    text('utilizationDelta', `${signed((reserve.scenarioUtilization - reserve.currentUtilization) * 100)} pp`);
+    text('utilizationDelta', finite(reserve.currentUtilization) ? `${signed((reserve.scenarioUtilization - reserve.currentUtilization) * 100)} pp` : 'No USDC baseline');
+    text('fundingNote', baseline.fundingReserve ? 'USDC borrowed / supplied · same Kamino market · USD-valued amounts' : baseline.fundingReserveUnavailable || 'USDC reserve unavailable in this market');
     text('navPriceValue', usd(asset.navPriceScenario));
     text('navPriceBase', `Reference ${usd(asset.navPriceCurrent)}`);
     text('navPriceDelta', `${signed(asset.navShockPct)}% shock`);
@@ -190,7 +193,7 @@ function render() {
     text('dominantDetail', first ? `${first.id.replaceAll('_', ' ')} · observed ${constraintValue(first.value)} · boundary ${constraintValue(first.threshold)}` : 'Within the evaluated rules for this test exposure. Source and model limitations still apply.');
     $('riskTags').innerHTML = (r.constraints || []).slice(1, 5).map(item => `<span>${escape(item.severity)} · ${escape(item.message)}</span>`).join('');
     text('safeLtv', pct(rwa.safeLtv)); text('maxBorrow', usd(rwa.maxBorrow)); text('stressedHF', num(health.averageHealthFactorStressed));
-    text('ltvGap', `Kamino ${pct(reserve.configuredLtv)} · ${signed(comparison.safetyGapLtvPoints)} pp`);
+    text('ltvGap', `${collateralReserve.symbol} LTV ${pct(collateralReserve.configuredLtv)} · ${signed(comparison.safetyGapLtvPoints)} pp`);
     text('borrowGate', `BORROW GATE ${rwa.borrowDisabled ? 'CLOSED' : 'OPEN'}`);
     text('healthBuffer', finite(health.averageHealthFactorStressed) ? `Buffer ${signed(health.averageHealthFactorStressed - 1)} above 1.00` : 'Baseline execution unavailable');
     $('maxBorrow').style.color = rwa.borrowDisabled ? 'var(--red)' : 'var(--green)';
@@ -203,21 +206,21 @@ function render() {
     renderWaterfall(r);
     $('reserveBar').style.width = `${reserve.scenarioUtilization * 100}%`;
     $('reserveMetrics').innerHTML = metricRows([
-      ['Fixed baseline TVL', usd(reserve.tvlUsd)], ['Scenario utilization', pct(reserve.scenarioUtilization)],
-      ['Scenario borrowed', usd(reserve.scenarioBorrowedUsd)], ['Scenario available', usd(reserve.scenarioAvailableUsd)],
-      ['Borrow cap', usd(reserve.borrowCapUsd)], ['Cap usage / headroom', `${pct(reserve.borrowCapUsage)} / ${usd(reserve.borrowCapHeadroomUsd)}`],
-      ['Supply cap', usd(reserve.supplyCapUsd)], ['Optimal utilization', pct(reserve.optimalUtilization)],
+      ['Fixed USDC supplied value', usd(reserve.tvlUsd)], ['USDC utilization', finite(reserve.currentUtilization) ? pct(reserve.scenarioUtilization) : 'Unavailable'],
+      ['Scenario USDC borrowed (USD)', usd(reserve.scenarioBorrowedUsd)], ['Scenario USDC available (USD)', usd(reserve.scenarioAvailableUsd)],
+      ['USDC borrow cap (USD)', usd(reserve.borrowCapUsd)], ['Cap usage / headroom', `${pct(reserve.borrowCapUsage)} / ${usd(reserve.borrowCapHeadroomUsd)}`],
+      ['USDC supply cap (USD)', usd(reserve.supplyCapUsd)], ['Optimal utilization', pct(reserve.optimalUtilization)],
       ['Rate-curve breakpoint', pct(reserve.rateCurveKink)],
       ['Distance to kink', finite(reserve.distanceToKink) ? `${signed(reserve.distanceToKink * 100)} pp` : 'Unavailable'],
       ['Interest-rate regime', reserve.interestRateRegime || 'Unavailable'], ['Borrow rate', pct(reserve.borrowRate)],
       ['Remaining reserve capacity', usd(reserve.remainingReserveCapacityUsd)]
     ]);
     $('comparison').innerHTML = [
-      ['LTV', pct(reserve.configuredLtv), pct(rwa.safeLtv)],
+      [`${collateralReserve.symbol} LTV`, pct(collateralReserve.configuredLtv), pct(rwa.safeLtv)],
       ['Borrowing capacity', usd(comparison.kaminoBorrowCapacityUsd), usd(rwa.maxBorrow)],
       ['Capacity difference', 'Configured lending policy', usd(comparison.safetyGapUsd)],
-      ['Liquidation threshold / target HF', pct(reserve.liquidationThreshold), num(health.targetHealth)],
-      ['Collateral cap', 'Reserve supply cap above', usd(rwa.collateralCap)],
+      ['Collateral liquidation threshold / target HF', pct(collateralReserve.liquidationThreshold), num(health.targetHealth)],
+      ['Collateral cap', usd(app.baseline.reserve.supplyCapUsd), usd(rwa.collateralCap)],
       ['Risk premium', 'Protocol borrow rate above', pct(rwa.riskPremium)],
       ['Execution price impact', 'Test position', `${num(execution.priceImpactPct)}%`],
       ['Routable execution liquidity', 'Separate from reserve cash', usd(execution.routableUsd)],
@@ -228,11 +231,11 @@ function render() {
 }
 
 function renderCurrent(r) {
-  const { reserve, asset, execution } = r;
+  const { reserve, collateralReserve, asset, execution } = r;
   const cards = [
-    ['Kamino TVL', compact(reserve.tvlUsd), 'FIXED RESERVE BASE'], ['Current utilization', pct(reserve.currentUtilization), 'OBSERVED BASELINE'],
-    ['Current borrowed', compact(reserve.currentBorrowedUsd), 'RESERVE LEVEL'], ['Current available', compact(reserve.currentAvailableUsd), 'RESERVE LIQUIDITY'],
-    ['Kamino configured LTV', pct(reserve.configuredLtv), 'PROTOCOL PARAMETER'], ['Liquidation threshold', pct(reserve.liquidationThreshold), 'PROTOCOL PARAMETER'],
+    ['USDC supplied (USD)', compact(reserve.tvlUsd), 'FIXED USDC RESERVE BASE'], ['USDC utilization', pct(reserve.currentUtilization), 'SAME KAMINO MARKET'],
+    ['USDC borrowed (USD)', compact(reserve.currentBorrowedUsd), 'USDC RESERVE'], ['USDC available (USD)', compact(reserve.currentAvailableUsd), 'USDC RESERVE LIQUIDITY'],
+    [`${collateralReserve.symbol} configured LTV`, pct(collateralReserve.configuredLtv), 'COLLATERAL PARAMETER'], [`${collateralReserve.symbol} liquidation threshold`, pct(collateralReserve.liquidationThreshold), 'COLLATERAL PARAMETER'],
     ['NAV / reference price', usd(asset.navPriceCurrent), app.baseline.asset.source?.independentNav === false ? 'ORACLE PROXY · NO ISSUER NAV' : app.baseline.asset.navType || 'SOURCE DETAILS BELOW'], ['Kamino oracle price', usd(asset.kaminoOraclePrice), 'OBSERVED · NOT SLIDER'],
     ['AMM execution depth', compact(execution.ammLiquidityCurrentUsd), app.baseline.execution.source?.fallback ? 'MODELLED FALLBACK' : 'EXECUTION BASELINE'], ['Average HF assumption', num(r.health.averageHealthFactorInitial), 'ABSTRACT · NOT OBSERVED']
   ];
@@ -240,7 +243,7 @@ function renderCurrent(r) {
 }
 
 function renderBoundaries(boundaries) {
-  const names = { utilization: 'Utilization', nav: 'NAV / reference', ammLiquidity: 'AMM liquidity', averageHealthFactor: 'Initial Average HF' };
+  const names = { utilization: 'USDC utilization', nav: 'NAV / reference', ammLiquidity: 'AMM liquidity', averageHealthFactor: 'Initial Average HF' };
   const format = (key, value) => key === 'utilization' ? pct(value) : key === 'averageHealthFactor' ? num(value) : usd(value);
   $('boundaries').innerHTML = Object.entries(names).map(([key, name]) => {
     const axis = boundaries?.[key];
@@ -265,8 +268,8 @@ function renderWaterfall(r) {
 
 function renderSources() {
   if (!app.baseline) return;
-  const { reserve, asset, execution } = app.baseline;
-  const entries = [['Kamino reserve', reserve], ['xStocks reference', asset], ['AMM execution', execution]];
+  const { reserve, fundingReserve, asset, execution } = app.baseline;
+  const entries = [['USDC funding reserve', fundingReserve || { notes: [app.baseline.fundingReserveUnavailable || 'No USDC reserve observation for this market'] }], [`${reserve.symbol} collateral reserve`, reserve], ['xStocks reference', asset], ['AMM execution', execution]];
   const anyFallback = entries.some(([, item]) => !item.source?.live || item.source?.fallback);
   const replay = $('valuationMode').value === 'snapshot-replay';
   const sandbox = $('valuationMode').value === 'sandbox';

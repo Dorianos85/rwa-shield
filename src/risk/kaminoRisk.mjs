@@ -36,6 +36,11 @@ const round2 = x => Math.round(x * 100) / 100;
 
 function normalize(input) {
   const { reserve = {}, asset = {}, execution = {}, scenario = {} } = input;
+  // Absence retains the legacy single-reserve contract. Explicit null never
+  // substitutes the collateral reserve for an unavailable USDC funding reserve.
+  const separateFunding = Object.hasOwn(input, 'fundingReserve');
+  const fundingAvailable = !separateFunding || (!!input.fundingReserve && typeof input.fundingReserve === 'object');
+  const fundingReserve = separateFunding ? input.fundingReserve ?? {} : reserve;
   const supplied = input.rwaParams ?? DEFAULT_PARAMS;
   const p = { ...DEFAULT_PARAMS, ...supplied,
     session: { ...DEFAULT_PARAMS.session, ...supplied.session },
@@ -57,10 +62,10 @@ function normalize(input) {
   for (const value of Object.values(p.session)) fraction(value, 'session modifier');
   const currentNav = optional(asset.navPrice) ?? 0;
   const currentLiquidity = optional(execution.routableUsd) ?? 0;
-  const currentUtilization = optional(reserve.currentUtilization);
+  const currentUtilization = optional(fundingReserve.currentUtilization);
   money(currentNav, 'asset.navPrice');
   money(currentLiquidity, 'execution.routableUsd');
-  if (currentUtilization !== null) fraction(currentUtilization, 'reserve.currentUtilization');
+  if (currentUtilization !== null) fraction(currentUtilization, 'fundingReserve.currentUtilization');
   const s = {
     utilization: fraction(scenario.utilization ?? currentUtilization ?? 0, 'utilization'),
     navPrice: money(scenario.navPrice ?? currentNav, 'navPrice'),
@@ -71,14 +76,18 @@ function normalize(input) {
     mode: scenario.mode ?? 'current'
   };
   if (!['current', 'snapshot-replay', 'sandbox'].includes(s.mode)) throw new RangeError('Unknown scenario mode');
-  const tvl = optional(reserve.tvlUsd);
-  if (tvl !== null) money(tvl, 'reserve.tvlUsd');
-  for (const key of ['configuredLtv', 'liquidationThreshold', 'optimalUtilization', 'firstCurveKink']) {
+  const tvl = optional(fundingReserve.tvlUsd);
+  if (tvl !== null) money(tvl, 'fundingReserve.tvlUsd');
+  for (const key of ['configuredLtv', 'liquidationThreshold']) {
     if (optional(reserve[key]) !== null) fraction(unwrap(reserve[key]), `reserve.${key}`);
   }
-  for (const key of ['borrowCapUsd', 'supplyCapUsd', 'kaminoOraclePrice']) {
-    if (optional(reserve[key]) !== null) money(unwrap(reserve[key]), `reserve.${key}`);
+  for (const key of ['optimalUtilization', 'firstCurveKink']) {
+    if (optional(fundingReserve[key]) !== null) fraction(unwrap(fundingReserve[key]), `fundingReserve.${key}`);
   }
+  for (const key of ['borrowCapUsd', 'supplyCapUsd']) {
+    if (optional(fundingReserve[key]) !== null) money(unwrap(fundingReserve[key]), `fundingReserve.${key}`);
+  }
+  if (optional(reserve.kaminoOraclePrice) !== null) money(unwrap(reserve.kaminoOraclePrice), 'reserve.kaminoOraclePrice');
   const qty = currentNav > 0 ? s.notionalUsd / currentNav : 0;
   money(qty, 'collateral quantity');
   money(qty * s.navPrice, 'stressed collateral reference value');
@@ -98,21 +107,38 @@ function normalize(input) {
     else if (executionAge === null || executionAge < 0) executionGateReason = 'execution_freshness_unknown';
     else if (executionAge > p.riskLab.maxExecutionAgeSec) executionGateReason = 'stale_execution';
   }
-  const reserveAgeActual = optional(reserve.source?.ageSec);
-  const reserveCaptureAge = optional(reserve.ageAtCaptureSec ?? reserve.source?.ageAtCaptureSec);
-  const reserveAge = s.mode === 'snapshot-replay' && reserveCaptureAge !== null ? reserveCaptureAge : reserveAgeActual;
-  const reserveVerified = reserve.source?.live === true || reserve.source?.cached === true || reserve.source?.verified === true;
-  let reserveGateReason = null;
+  const observation = (value, prefix) => {
+    const actualAge = optional(value.source?.ageSec);
+    const captureAge = optional(value.ageAtCaptureSec ?? value.source?.ageAtCaptureSec);
+    const age = s.mode === 'snapshot-replay' && captureAge !== null ? captureAge : actualAge;
+    const verified = value.source?.live === true || value.source?.cached === true || value.source?.verified === true;
+    const reason = s.mode === 'sandbox' ? null : age === null || age < 0 ? `${prefix}_freshness_unknown` :
+      age > p.riskLab.maxReserveAgeSec ? `stale_${prefix}` : !verified ? `${prefix}_unverified` : null;
+    return { actualAge, age, reason };
+  };
+  const collateralObservation = observation(reserve, separateFunding ? 'collateral_reserve' : 'reserve');
+  const fundingObservation = separateFunding ? observation(fundingReserve, 'funding_reserve') : collateralObservation;
+  const market = reserve.market ?? reserve.marketAddress;
+  const fundingMarket = fundingReserve.market ?? fundingReserve.marketAddress;
+  let fundingGateReason = !fundingAvailable ? 'funding_reserve_unavailable' :
+    separateFunding && fundingReserve.symbol !== 'USDC' ? 'funding_asset_mismatch' :
+    separateFunding && (!market || !fundingMarket) ? 'funding_market_unverified' :
+    separateFunding && market !== fundingMarket ? 'funding_market_mismatch' : fundingObservation.reason;
+  let reserveGateReason = collateralObservation.reason;
   if (s.mode !== 'sandbox') {
-    if (reserveAge === null || reserveAge < 0) reserveGateReason = 'reserve_freshness_unknown';
-    else if (reserveAge > p.riskLab.maxReserveAgeSec) reserveGateReason = 'stale_reserve';
-    else if (!reserveVerified) reserveGateReason = 'reserve_unverified';
-    else if (tvl === null || currentUtilization === null || optional(reserve.configuredLtv) === null || optional(reserve.liquidationThreshold) === null) reserveGateReason = 'reserve_parameters_unavailable';
+    if (!reserveGateReason && (optional(reserve.configuredLtv) === null || optional(reserve.liquidationThreshold) === null)) {
+      reserveGateReason = separateFunding ? 'collateral_reserve_parameters_unavailable' : 'reserve_parameters_unavailable';
+    }
+    if (!fundingGateReason && (tvl === null || currentUtilization === null)) {
+      fundingGateReason = separateFunding ? 'funding_reserve_parameters_unavailable' : 'reserve_parameters_unavailable';
+    }
   }
-  return { reserve, asset, execution, p, s, currentNav, currentLiquidity, currentUtilization,
+  return { reserve, fundingReserve, separateFunding, fundingAvailable, asset, execution, p, s, currentNav, currentLiquidity, currentUtilization,
     tvl, qty, age: age ?? MAX_MONEY, priceAgeActual, replay,
     executionAgeActual, executionAge, executionGateReason,
-    reserveAgeActual, reserveAge, reserveGateReason,
+    reserveAgeActual: fundingObservation.actualAge, reserveAge: fundingObservation.age,
+    collateralAgeActual: collateralObservation.actualAge, collateralAge: collateralObservation.age,
+    reserveGateReason, fundingGateReason,
     volatility: volatility ?? p.volRefAnnual };
 }
 
@@ -170,8 +196,8 @@ function valuationAt(n, navPrice, liquidity) {
   const zeroCollateral = x.referenceValue <= 0;
   const unavailableCurve = !x.curveAvailable;
   const reason = zeroCollateral ? 'zero_collateral' : unavailableCurve ? 'execution_unavailable' :
-    n.age > n.p.maxStalenessSec ? 'stale_price' : n.executionGateReason ?? n.reserveGateReason ??
-    (liquidity < n.p.depthFloorUsd ? 'depth_floor' : model.outputs.breaker_reason);
+    n.fundingGateReason ?? (n.age > n.p.maxStalenessSec ? 'stale_price' : n.executionGateReason ?? n.reserveGateReason ??
+    (liquidity < n.p.depthFloorUsd ? 'depth_floor' : model.outputs.breaker_reason));
   const borrowDisabled = reason !== null;
   const outputs = { ...model.outputs,
     max_borrow: borrowDisabled ? 0 : model.outputs.max_borrow,
@@ -200,16 +226,16 @@ function borrowRateAt(curve, utilization) {
 }
 
 function evaluate(n) {
-  const { reserve, asset, execution, s, p, tvl } = n;
+  const { reserve, fundingReserve, asset, execution, s, p, tvl } = n;
   const baseline = valuationAt(n, n.currentNav, n.currentLiquidity);
   const v = valuationAt(n, s.navPrice, s.ammLiquidityUsd);
   const m = v.model;
   const configuredLtv = optional(reserve.configuredLtv);
   const liquidationThreshold = optional(reserve.liquidationThreshold);
-  const cap = optional(reserve.borrowCapUsd);
-  const supplyCap = optional(reserve.supplyCapUsd);
-  const optimalUtilization = optional(reserve.optimalUtilization);
-  const kink = optimalUtilization ?? optional(reserve.firstCurveKink);
+  const cap = optional(fundingReserve.borrowCapUsd);
+  const supplyCap = optional(fundingReserve.supplyCapUsd);
+  const optimalUtilization = optional(fundingReserve.optimalUtilization);
+  const kink = optimalUtilization ?? optional(fundingReserve.firstCurveKink);
   const borrowed = tvl === null ? null : tvl * s.utilization;
   const available = tvl === null ? null : tvl * (1 - s.utilization);
   const executableRatio = ratio(m.executableValue, baseline.model.executableValue);
@@ -233,6 +259,10 @@ function evaluate(n) {
       reserve_freshness_unknown: [null, p.riskLab.maxReserveAgeSec],
       reserve_unverified: [null, null],
       reserve_parameters_unavailable: [null, null],
+      stale_funding_reserve: [n.reserveAge, p.riskLab.maxReserveAgeSec],
+      funding_reserve_freshness_unknown: [null, p.riskLab.maxReserveAgeSec],
+      stale_collateral_reserve: [n.collateralAge, p.riskLab.maxReserveAgeSec],
+      collateral_reserve_freshness_unknown: [null, p.riskLab.maxReserveAgeSec],
       zero_collateral: [v.referenceValue, 0],
       execution_unavailable: [null, null]
     }[m.outputs.breaker_reason] ?? [null, null];
@@ -256,22 +286,33 @@ function evaluate(n) {
     scenario: { ...s }, valuationMode: s.mode === 'sandbox' ? 'sandbox' : n.replay ? 'snapshot-replay' : 'current',
     modeledOnly: s.mode !== 'current',
     assumptions: s.mode === 'sandbox' ? ['Hypothetical fresh reference (modeled age zero), usable execution curve (including synthetic or stale curves), and fixed reserve state; this is not the current borrowing gate. Actual timestamps and provenance remain unchanged.'] : [],
-    sources: { reserve: reserve.source ?? null, asset: asset.source ?? null, execution: execution.source ?? null },
-    reserve: { market: reserve.market ?? reserve.marketName ?? null, reserve: reserve.reserve ?? reserve.reserveAddress ?? null,
-      symbol: reserve.symbol ?? asset.symbol ?? null, tvlUsd: tvl, currentUtilization: n.currentUtilization,
+    sources: { reserve: fundingReserve.source ?? null, fundingReserve: fundingReserve.source ?? null,
+      collateralReserve: reserve.source ?? null, asset: asset.source ?? null, execution: execution.source ?? null },
+    collateralReserve: { market: reserve.market ?? reserve.marketAddress ?? null,
+      reserve: reserve.reserve ?? reserve.reserveAddress ?? reserve.address ?? null,
+      address: reserve.reserve ?? reserve.reserveAddress ?? reserve.address ?? null,
+      symbol: reserve.symbol ?? asset.symbol ?? null, mint: reserve.mint ?? asset.mint ?? null,
+      configuredLtv, liquidationThreshold, kaminoOraclePrice: optional(reserve.kaminoOraclePrice),
+      ageSec: n.collateralAgeActual, modeledAgeSec: n.collateralAge, source: reserve.source ?? null },
+    reserve: { market: fundingReserve.market ?? fundingReserve.marketName ?? null,
+      reserve: fundingReserve.reserve ?? fundingReserve.reserveAddress ?? fundingReserve.address ?? null,
+      symbol: fundingReserve.symbol ?? (n.separateFunding ? 'USDC' : asset.symbol) ?? null,
+      mint: fundingReserve.mint ?? null, role: n.separateFunding ? 'funding' : 'legacy-single-reserve',
+      available: n.fundingAvailable, tvlUsd: tvl, currentUtilization: n.currentUtilization,
       ageSec: n.reserveAgeActual, modeledAgeSec: n.reserveAge, maxAgeSec: p.riskLab.maxReserveAgeSec,
       scenarioUtilization: s.utilization,
       currentBorrowedUsd: tvl === null || n.currentUtilization === null ? null : tvl * n.currentUtilization,
       currentAvailableUsd: tvl === null || n.currentUtilization === null ? null : tvl * (1 - n.currentUtilization),
       scenarioBorrowedUsd: borrowed, scenarioAvailableUsd: available, reserveLiquidityBuffer: 1 - s.utilization,
-      configuredLtv, liquidationThreshold, borrowCapUsd: cap, supplyCapUsd: supplyCap, optimalUtilization,
+      configuredLtv, liquidationThreshold, policyBelongsTo: 'collateralReserve',
+      borrowCapUsd: cap, supplyCapUsd: supplyCap, optimalUtilization,
       rateCurveKink: kink,
       borrowCapUsage: borrowed === null || cap === null ? null : ratio(borrowed, cap),
       borrowCapHeadroomUsd: borrowed === null || cap === null ? null : cap - borrowed,
       remainingReserveCapacityUsd: available === null ? null : Math.max(0, cap === null ? available : Math.min(available, cap - borrowed)),
       distanceToKink: kink === null ? null : kink - s.utilization,
       interestRateRegime: kink === null ? 'unknown' : s.utilization >= kink ? 'above-kink' : 'below-kink',
-      borrowRate: borrowRateAt(reserve.borrowRateCurve, s.utilization) },
+      borrowRate: borrowRateAt(fundingReserve.borrowRateCurve, s.utilization) },
     asset: { kaminoOraclePrice: optional(reserve.kaminoOraclePrice), navPriceCurrent: n.currentNav,
       navPriceScenario: s.navPrice, navShockPct: percentChange(s.navPrice, n.currentNav),
       collateralQty: n.qty, collateralReferenceValue: v.referenceValue,

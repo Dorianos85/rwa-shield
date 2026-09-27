@@ -1,5 +1,5 @@
 /** Additive risk-lab endpoints; no changes to the legacy ECV response contract. */
-import { getKaminoMarkets, getKaminoReserve } from '../data/kamino.mjs';
+import { getKaminoMarkets, getKaminoReservePair } from '../data/kamino.mjs';
 import { getXstockAsset } from '../data/xstocks.mjs';
 import { getLiquidity } from '../data/liquidity.mjs';
 import { computeKaminoRiskScenario } from '../risk/kaminoRisk.mjs';
@@ -27,7 +27,7 @@ export async function handleRiskRequest(req, res, url, rwaParams) {
     if (market && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(market)) throw badRequest('invalid_market');
     if (!/^[A-Za-z0-9]{1,12}$/.test(symbol)) throw badRequest('invalid_symbol');
     const notionalUsd = number(query, 'notional', 100_000, 1, 10_000_000);
-    let reserve = await getKaminoReserve({ market, symbol, ...options });
+    let { reserve, fundingReserve, fundingReserveUnavailable } = await getKaminoReservePair({ market, symbol, ...options });
     if (!reserve) throw badRequest('unsupported_market_or_asset');
     reserve = { ...reserve, source: ageSource(reserve.source) };
     if (url.pathname === '/api/kamino/reserve') return reply(res, 200, reserve);
@@ -39,10 +39,11 @@ export async function handleRiskRequest(req, res, url, rwaParams) {
     reserve = { ...reserve, source: ageSource(reserve.source) };
     asset = getXstockAsset({ reserve });
     execution = { ...execution, source: ageSource(execution.source) };
+    if (fundingReserve) fundingReserve = { ...fundingReserve, source: ageSource(fundingReserve.source) };
     if (url.pathname === '/api/liquidity') return reply(res, 200, execution);
     const baseline = {
-      reserve, asset, execution, rwaParams,
-      sources: { kamino: reserve.source, xstocks: asset.source, execution: execution.source }
+      reserve, fundingReserve, fundingReserveUnavailable, asset, execution, rwaParams,
+      sources: { kamino: reserve.source, fundingReserve: fundingReserve?.source ?? null, xstocks: asset.source, execution: execution.source }
     };
     if (url.pathname === '/api/risk/baseline') return reply(res, 200, baseline);
     const scenario = { notionalUsd };

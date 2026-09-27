@@ -404,3 +404,145 @@ test('subnormal denominators never leak non-finite ratios or percentage changes'
   };
   visit(r);
 });
+
+const dualReserveFixture = () => {
+  const input = fixture();
+  Object.assign(input.reserve, { market: 'same-market', reserve: 'collateral-address',
+    symbol: 'SPYx', mint: 'spy-mint', tvlUsd: 200_000, currentUtilization: 0.99,
+    borrowCapUsd: 0, optimalUtilization: 0.2 });
+  input.fundingReserve = {
+    market: 'same-market', reserve: 'usdc-address', symbol: 'USDC', mint: 'usdc-mint',
+    tvlUsd: 10_000_000, currentUtilization: 0.45, borrowCapUsd: 9_000_000,
+    supplyCapUsd: 15_000_000, optimalUtilization: 0.82, kaminoOraclePrice: 1,
+    configuredLtv: 0.99, liquidationThreshold: 0.999,
+    borrowRateCurve: [{ utilization: 0, borrowRate: 0 }, { utilization: 1, borrowRate: 0.5 }],
+    source: { source: 'USDC observation', ageSec: 5, live: true, fallback: false }
+  };
+  delete input.scenario.utilization;
+  return input;
+};
+
+test('USDC funding drives reserve pressure while xStock drives collateral policy and oracle', () => {
+  const input = dualReserveFixture();
+  const r = run({}, input);
+  assert.equal(r.reserve.symbol, 'USDC');
+  assert.equal(r.reserve.reserve, 'usdc-address');
+  assert.equal(r.reserve.mint, 'usdc-mint');
+  assert.equal(r.reserve.tvlUsd, 10_000_000);
+  assert.equal(r.reserve.currentUtilization, 0.45);
+  assert.equal(r.reserve.scenarioUtilization, 0.45);
+  assert.equal(r.reserve.scenarioBorrowedUsd, 4_500_000);
+  assert.equal(r.reserve.scenarioAvailableUsd, 5_500_000);
+  assert.equal(r.reserve.borrowCapUsd, 9_000_000);
+  assert.equal(r.reserve.rateCurveKink, 0.82);
+  close(r.reserve.borrowRate, 0.225);
+  assert.equal(r.collateralReserve.symbol, 'SPYx');
+  assert.equal(r.collateralReserve.address, 'collateral-address');
+  assert.equal(r.collateralReserve.mint, 'spy-mint');
+  assert.equal(r.collateralReserve.configuredLtv, 0.55);
+  assert.equal(r.collateralReserve.liquidationThreshold, 0.75);
+  assert.equal(r.asset.kaminoOraclePrice, 101);
+  assert.equal(r.comparison.kaminoBorrowCapacityUsd, 100_000 * 0.55);
+  assert.equal(r.reserve.configuredLtv, r.collateralReserve.configuredLtv);
+  assert.equal(r.reserve.policyBelongsTo, 'collateralReserve');
+  assert.deepEqual(r.sources.fundingReserve, input.fundingReserve.source);
+  assert.deepEqual(r.sources.collateralReserve, input.reserve.source);
+  assert.equal(r.overallStatus, 'SAFE');
+});
+
+test('USDC utilization cannot change collateral ECV or NAV/HF, and collateral accounting cannot change USDC pressure', () => {
+  const input = dualReserveFixture();
+  const baseline = run({}, input);
+  const stressed = run({ utilization: 0.88 }, input);
+  assert.equal(stressed.rwaShield.ecv, baseline.rwaShield.ecv);
+  assert.deepEqual(stressed.asset, baseline.asset);
+  assert.deepEqual(stressed.health, baseline.health);
+  assert.equal(stressed.reserve.scenarioBorrowedUsd, 8_800_000);
+  assert.equal(stressed.reserve.tvlUsd, 10_000_000);
+  input.reserve.tvlUsd = 900_000_000;
+  input.reserve.currentUtilization = 0;
+  input.reserve.borrowCapUsd = 1;
+  input.reserve.borrowRateCurve = [];
+  input.reserve.optimalUtilization = 0;
+  assert.deepEqual(run({}, input).reserve, baseline.reserve);
+  for (const scenario of [{ navPrice: 70 }, { ammLiquidityUsd: 80_000 }, { averageHealthFactor: 0.9 }]) {
+    assert.deepEqual(run(scenario, input).reserve, baseline.reserve);
+  }
+});
+
+test('utilization boundaries use USDC cap and curve rather than collateral reserve limits', () => {
+  const input = dualReserveFixture();
+  const boundaries = findRiskBoundaries(input);
+  close(boundaries.utilization.warning.value, 0.82);
+  close(boundaries.utilization.critical.value, 0.9);
+  assert.equal(boundaries.utilization.warning.limitingConstraint, 'utilization_kink');
+  assert.equal(boundaries.utilization.critical.limitingConstraint, 'borrow_cap');
+});
+
+test('explicit unavailable USDC fails closed in every mode instead of using collateral liquidity', () => {
+  const input = dualReserveFixture(); input.fundingReserve = null;
+  for (const mode of ['current', 'snapshot-replay', 'sandbox']) {
+    const r = run({ mode }, input);
+    assert.equal(r.rwaShield.borrowDisabled, true);
+    assert.equal(r.rwaShield.maxBorrow, 0);
+    assert.equal(r.rwaShield.breakerReason, 'funding_reserve_unavailable');
+    assert.equal(r.overallStatus, 'CRITICAL');
+    assert.equal(r.reserve.symbol, 'USDC');
+    assert.equal(r.reserve.available, false);
+    assert.equal(r.reserve.tvlUsd, null);
+    assert.equal(r.reserve.currentUtilization, null);
+    assert.equal(r.reserve.scenarioBorrowedUsd, null);
+    assert.equal(r.reserve.scenarioAvailableUsd, null);
+    assert.equal(r.sources.fundingReserve, null);
+    assert.equal(r.collateralReserve.symbol, 'SPYx');
+  }
+});
+
+test('explicit funding identity must be USDC in the selected collateral market, including sandbox', () => {
+  for (const mode of ['current', 'sandbox']) {
+    const input = dualReserveFixture(); input.fundingReserve.market = 'other-market';
+    assert.equal(run({ mode }, input).rwaShield.breakerReason, 'funding_market_mismatch');
+    delete input.fundingReserve.market;
+    assert.equal(run({ mode }, input).rwaShield.breakerReason, 'funding_market_unverified');
+    input.fundingReserve.market = 'same-market'; input.fundingReserve.symbol = 'USDT';
+    assert.equal(run({ mode }, input).rwaShield.breakerReason, 'funding_asset_mismatch');
+  }
+});
+
+test('freshness independently gates collateral and USDC funding observations', () => {
+  const input = dualReserveFixture(); input.fundingReserve.source.ageSec = 1000;
+  let r = run({}, input);
+  assert.equal(r.rwaShield.breakerReason, 'stale_funding_reserve');
+  assert.equal(r.reserve.ageSec, 1000);
+  assert.equal(r.collateralReserve.ageSec, 5);
+  assert.equal(r.constraints.find(c => c.id === 'borrow_breaker').value, 1000);
+  input.fundingReserve.source.ageSec = 5; input.reserve.source.ageSec = 1000;
+  r = run({}, input);
+  assert.equal(r.rwaShield.breakerReason, 'stale_collateral_reserve');
+  assert.equal(r.reserve.ageSec, 5);
+  assert.equal(r.collateralReserve.ageSec, 1000);
+  assert.equal(r.constraints.find(c => c.id === 'borrow_breaker').value, 1000);
+  assert.equal(run({ mode: 'sandbox' }, input).overallStatus, 'SAFE');
+  input.reserve.ageAtCaptureSec = 5;
+  assert.equal(run({ mode: 'snapshot-replay' }, input).rwaShield.borrowDisabled, false);
+});
+
+test('USDC collateral-policy fields are irrelevant, but missing USDC accounting cannot enable current lending', () => {
+  const input = dualReserveFixture();
+  input.fundingReserve.configuredLtv = null;
+  input.fundingReserve.liquidationThreshold = null;
+  input.reserve.tvlUsd = null;
+  input.reserve.currentUtilization = null;
+  assert.equal(run({}, input).overallStatus, 'SAFE');
+  input.fundingReserve.tvlUsd = null;
+  assert.equal(run({}, input).rwaShield.breakerReason, 'funding_reserve_parameters_unavailable');
+});
+
+test('absent fundingReserve retains legacy single-reserve accounting without silent migration', () => {
+  const input = fixture();
+  const r = run({}, input);
+  assert.equal(r.reserve.role, 'legacy-single-reserve');
+  assert.equal(r.reserve.tvlUsd, input.reserve.tvlUsd);
+  assert.equal(r.reserve.currentUtilization, input.reserve.currentUtilization);
+  assert.equal(r.reserve.borrowCapUsd, input.reserve.borrowCapUsd);
+});

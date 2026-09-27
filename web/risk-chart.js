@@ -105,14 +105,15 @@ export function mountRiskChart({ onApply }) {
       // Price age changes continuously; its effect on classification changes at
       // the freshness gate. Cache until a gate, fixed assumption or baseline changes.
       const { source: reserveSource, ...reserveData } = input.reserve;
+      const { source: fundingSource, ...fundingData } = input.fundingReserve || {};
       const { source: executionSource, ...executionData } = input.execution;
       const { source: assetSource, priceAgeSec, ...assetData } = input.asset;
       const ageBand = (age, limit) => Number.isFinite(age) ? age > limit ? 'stale' : 'fresh' : 'unknown';
       const policy = input.rwaParams.riskLab;
-      const key = JSON.stringify({ reserveData, executionData, assetData, params: input.rwaParams, ranges,
+      const key = JSON.stringify({ reserveData, fundingData, fundingMissing: input.fundingReserve === null, executionData, assetData, params: input.rwaParams, ranges,
         fixed: [s.utilization, s.averageHealthFactor, s.notionalUsd, s.mode],
-        provenance: [reserveSource, executionSource, assetSource].map(source => source && { ...source, ageSec: undefined }),
-        age: [ageBand(priceAgeSec, input.rwaParams.maxStalenessSec), ageBand(reserveSource?.ageSec, policy.maxReserveAgeSec), ageBand(executionSource?.ageSec, policy.maxExecutionAgeSec)] });
+        provenance: [reserveSource, fundingSource, executionSource, assetSource].map(source => source && { ...source, ageSec: undefined }),
+        age: [ageBand(priceAgeSec, input.rwaParams.maxStalenessSec), ageBand(reserveSource?.ageSec, policy.maxReserveAgeSec), ageBand(fundingSource?.ageSec, policy.maxReserveAgeSec), ageBand(executionSource?.ageSec, policy.maxExecutionAgeSec)] });
       const keepPreview = cacheKey === key && JSON.stringify(previousScenario) === JSON.stringify(s);
       if (cacheKey !== key) {
         const started = performance.now();
@@ -135,7 +136,7 @@ export function mountRiskChart({ onApply }) {
       const x = xOf(result.asset.navPriceScenario), y = yOf(result.execution.ammLiquidityScenarioUsd);
       $('chartMarker').innerHTML = `<path d="M${x} ${PLOT.y}V${PLOT.y + PLOT.height} M${PLOT.x} ${y}H${PLOT.x + PLOT.width}" stroke="white" opacity=".3" stroke-dasharray="2 6" fill="none"/><circle cx="${x}" cy="${y}" r="11" fill="#071014" stroke="white" stroke-width="2"/><circle cx="${x}" cy="${y}" r="4" fill="white"/>`;
       $('chartMode').textContent = result.valuationMode === 'sandbox' ? 'SANDBOX · MODEL GRID' : result.valuationMode === 'snapshot-replay' ? 'REPLAY · MODEL GRID' : 'CURRENT DATA · MODEL GRID';
-      $('chartContext').textContent = `${input.reserve.symbol} · ${money(s.notionalUsd)} tested exposure · utilization ${(s.utilization * 100).toFixed(2)}% · initial Average HF ${s.averageHealthFactor.toFixed(2)}. These assumptions stay fixed across the map.`;
+      $('chartContext').textContent = `${input.reserve.symbol} collateral · ${money(s.notionalUsd)} tested exposure · USDC utilization ${input.fundingReserve === null ? 'unavailable' : (s.utilization * 100).toFixed(2) + '%'} · initial Average HF ${s.averageHealthFactor.toFixed(2)}. These assumptions stay fixed across the map.`;
       svg.setAttribute('aria-label', `Risk landscape for ${input.reserve.symbol}. Selected scenario ${result.overallStatus}; NAV ${money(result.asset.navPriceScenario)}, AMM liquidity ${money(result.execution.ammLiquidityScenarioUsd)}. ${result.dominantReason}`);
       if (!keepPreview) { keyboard = null; preview = null; }
       inspect(preview, keyboard ? 'KEYBOARD EXPLORATION' : 'EXPLORED SCENARIO');

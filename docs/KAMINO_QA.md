@@ -150,5 +150,19 @@ Lokalny screenshot dowodowy: `.qa/risk-desktop.png` (celowo poza Gitem).
 - Pierwsze rysowanie 864 pól: około 24 ms w lokalnej sesji, bez błędów konsoli.
 - Zrzut lokalny `.qa/risk-chart.png` (poza Gitem).
 
+## Uzupełnienie — utilization rezerwy USDC
+
+- 71/71 testów PASS. Adapter potwierdza canonical mint USDC i wspólny rynek;
+  silnik zachowuje niezależne LTV/oracle xStock oraz rachunkowość i progi USDC.
+- Nieobecny USDC w snapshotcie Sentora: wartości niedostępne, suwak wyłączony,
+  CRITICAL i zamknięte borrowing także w sandbox. Brak podstawiania innego tokena.
+- Przeglądarka: TSLAx → SPYx zachowuje 90,55% USDC; zmiana na Sentora pokazuje
+  brak danych; powrót przywraca suwak. Przy 0% USDC borrowed=0, available=cała
+  dostarczona wartość, ECV/odzysk/HF zabezpieczenia nie zmieniają się.
+- Niezależny review: brak blockerów; 30 dodatkowych scenariuszy dla pięciu
+  aktywów i test unieważnienia cache mapy po przeterminowaniu tylko USDC.
+- Backtest sześciu scenariuszy PASS, integracyjny `/api/ecv` 200, konsola bez błędów.
+- Zrzut lokalny `.qa/risk-usdc.png` (poza Gitem).
+
 Push i PR wykonuje orkiestrator po tej weryfikacji; dowód stanowi link PR i
 historia commitów. Nie ma automatycznego merge ani publicznego deploymentu.

@@ -12,9 +12,38 @@ not manufacture protocol values, an independent issuer NAV, or position debt.
 All calibration controls reside in `src/ecv/params.mjs`; grid resolution and
 numeric input bounds are numerical implementation controls, not risk thresholds.
 
+## USDC funding and xStock collateral
+
+The dashboard supplies two normalized reserves:
+
+* Input `reserve` is the selected xStock **collateral** reserve. Its LTV,
+  liquidation threshold, oracle price, token identity and freshness describe
+  the asset being tested for liquidation.
+* Input `fundingReserve` is the **USDC** reserve in the same Kamino market.
+  Its TVL, utilization, borrowed/available USD, borrow/supply caps and rate curve
+  drive the utilization slider and all reserve-pressure boundaries.
+
+The output `reserve` contains USDC pressure metrics (`role: 'funding'`), including
+its own symbol, address, mint and freshness. Output `collateralReserve` contains
+the selected xStock identity, LTV, liquidation threshold, oracle and provenance.
+For old consumers, `reserve.configuredLtv` and `reserve.liquidationThreshold`
+remain compatibility aliases **belonging to collateralReserve**, explicitly
+marked by `reserve.policyBelongsTo`. New UI code must read collateral policy
+from `collateralReserve`. `asset.kaminoOraclePrice` always means the xStock
+oracle. `sources.reserve` is the pressure-source alias; explicit
+`sources.fundingReserve` and `sources.collateralReserve` remove ambiguity.
+
+Freshness is enforced independently for both reserves. Explicit funding must
+identify USDC in the same nonempty market as the collateral; absent or mismatched
+identity closes the gate even in sandbox. Explicit `fundingReserve: null` means
+USDC is unavailable: pressure metrics remain null and lending stays disabled in
+every mode. It never substitutes the xStock reserve. Legacy callers that omit
+the property entirely retain single-reserve behavior, marked
+`role: 'legacy-single-reserve'`.
+
 ## Three independent accounting layers
 
-* **Reserve:** fixed supplied USD value times scenario utilization gives borrowed
+* **USDC reserve:** fixed supplied USD value times scenario utilization gives borrowed
   USD; its complement gives available reserve USD. Neither price, execution
   depth, nor abstract Average HF alters this debt or TVL.
 * **Tested collateral:** quantity is baseline tested notional divided by baseline

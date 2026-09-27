@@ -48,14 +48,31 @@ test('offline HTTP integration preserves legacy routes and validates risk-lab re
   assert.equal(baseline.reserve.source.live, false);
   assert.equal(baseline.asset.source.live, false);
   assert.equal(baseline.execution.source.live, false);
+  assert.equal(baseline.fundingReserve.symbol, 'USDC');
+  assert.equal(baseline.fundingReserve.market, baseline.reserve.market);
+  assert.notEqual(baseline.fundingReserve.reserve, baseline.reserve.reserve);
 
   const { data: result, response: compareResponse } = await get('/api/risk/compare?symbol=SPYx&utilization=0.92&averageHealthFactor=1.8');
   assert.equal(compareResponse.status, 200, JSON.stringify(result));
-  assert.equal(result.reserve.tvlUsd, baseline.reserve.tvlUsd);
-  assert.ok(Math.abs(result.reserve.scenarioBorrowedUsd - baseline.reserve.tvlUsd * 0.92) < 0.01);
-  assert.ok(Math.abs(result.reserve.scenarioAvailableUsd - baseline.reserve.tvlUsd * 0.08) < 0.01);
+  assert.equal(result.reserve.symbol, 'USDC');
+  assert.equal(result.collateralReserve.symbol, 'SPYx');
+  assert.equal(result.collateralReserve.configuredLtv, baseline.reserve.configuredLtv);
+  assert.equal(result.asset.kaminoOraclePrice, baseline.reserve.kaminoOraclePrice);
+  assert.equal(result.reserve.tvlUsd, baseline.fundingReserve.tvlUsd);
+  assert.ok(Math.abs(result.reserve.scenarioBorrowedUsd - baseline.fundingReserve.tvlUsd * 0.92) < 0.01);
+  assert.ok(Math.abs(result.reserve.scenarioAvailableUsd - baseline.fundingReserve.tvlUsd * 0.08) < 0.01);
   assert.ok(result.boundaries.nav);
   assert.ok(!/NaN|Infinity/.test(JSON.stringify(result)));
+
+  const alternateMarket = discovery.markets.find(m => m.name.includes('Sentora')).address;
+  const { data: missing } = await get(`/api/risk/baseline?market=${alternateMarket}&symbol=SPYx`);
+  assert.equal(missing.fundingReserve, null);
+  assert.match(missing.fundingReserveUnavailable, /No verified USDC/);
+  const { data: unavailable, response: missingResponse } = await get(`/api/risk/compare?market=${alternateMarket}&symbol=SPYx&mode=sandbox`);
+  assert.equal(missingResponse.status, 200);
+  assert.equal(unavailable.overallStatus, 'CRITICAL');
+  assert.equal(unavailable.reserve.tvlUsd, null);
+  assert.equal(unavailable.rwaShield.borrowDisabled, true);
 
   for (const path of [
     '/api/risk/compare?utilization=1', '/api/risk/compare?notional=Infinity',
