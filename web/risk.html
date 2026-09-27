@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Test lending reserve pressure, collateral execution and abstract borrower health independently with RWA Shield.">
+  <title>RWA Shield · Kamino × xStocks Risk Lab</title>
+  <link rel="stylesheet" href="/web/risk.css">
+  <script type="module" src="/web/risk.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">◈ <strong>RWA SHIELD</strong><span>EXECUTABLE COLLATERAL VALUE</span></a>
+  <div class="topbar-right"><span class="lab-tag">RESEARCH TERMINAL / 01</span><a href="/">Original ECV demo ↗</a></div>
+</header>
+<main>
+  <section class="intro">
+    <div><p class="eyebrow">INTERACTIVE EXECUTION RISK</p><h1>Kamino × xStocks Risk Lab</h1><p class="subtitle">Four independent stress variables. Find what breaks first.</p></div>
+  </section>
+
+  <div id="error" class="error" role="alert" hidden></div>
+  <section class="toolbar" aria-label="Data selection">
+    <label>Market<select id="market" aria-label="Kamino market"><option>Loading markets…</option></select></label>
+    <label>Collateral<select id="asset" aria-label="xStock asset"><option>Loading…</option></select></label>
+    <label>Data mode<select id="dataMode"><option value="live">Best available</option><option value="offline">Offline snapshot</option></select></label>
+    <label>Valuation time<select id="valuationMode"><option value="current">Current freshness</option><option value="snapshot-replay">Replay at capture</option><option value="sandbox">Stress sandbox · assume fresh reference</option></select></label>
+    <div class="feed-state"><span id="feedBadge" class="badge">CONNECTING</span><small id="updated">Reading source metadata</small></div>
+    <button id="refresh" type="button">↻ Refresh</button>
+  </section>
+
+  <div id="sandboxNotice" class="sandbox-notice" hidden><strong>STRESS SANDBOX / NOT A CURRENT LENDING SIGNAL</strong><span>Hypothetical fresh reference: the model assumes zero price age. Actual source ages and fallback labels remain visible. All four stress controls remain independent.</span></div>
+
+  <section class="current-strip" aria-label="Observed baseline" id="currentCards"></section>
+
+  <div class="workspace">
+    <section class="controls panel" aria-labelledby="controlsTitle">
+      <div class="panel-head"><div><span class="eyebrow">01 / STRESS INPUTS</span><h2 id="controlsTitle">Change the conditions.</h2></div><button id="reset" class="text-button" type="button">Reset ↺</button></div>
+      <p class="helper">TVL stays fixed. Sliders model scenarios locally.</p>
+      <fieldset id="controls" disabled>
+        <div class="control" data-axis="utilization"><div class="control-title"><label for="utilization">Kamino utilization rate</label><output id="utilizationValue" for="utilization">—</output></div><input id="utilization" type="range" min="0" max="99.9" step="any"><div class="control-meta"><span id="utilizationBase">Current —</span><span id="utilizationDelta">—</span></div><p>Reserve borrowing pressure · TVL is constant</p></div>
+        <div class="control" data-axis="navPrice"><div class="control-title"><label for="navPrice">NAV / reference price</label><output id="navPriceValue" for="navPrice">—</output></div><input id="navPrice" type="range" min="0" max="1000" step="0.01"><div class="control-meta"><span id="navPriceBase">Current —</span><span id="navPriceDelta">—</span></div><p>Scenario collateral price · oracle stays observed</p></div>
+        <div class="control" data-axis="ammLiquidityUsd"><div class="control-title"><label for="ammLiquidityUsd">AMM execution liquidity</label><output id="ammLiquidityUsdValue" for="ammLiquidityUsd">—</output></div><input id="ammLiquidityUsd" type="range" min="0" max="1000000" step="100"><div class="control-meta"><span id="ammLiquidityUsdBase">Baseline —</span><span id="ammLiquidityUsdDelta">—</span></div><p>DEX liquidation depth · separate from reserve cash</p></div>
+        <div class="control" data-axis="averageHealthFactor"><div class="control-title"><label for="averageHealthFactor">Average Health Factor</label><output id="averageHealthFactorValue" for="averageHealthFactor">—</output></div><input id="averageHealthFactor" type="range" min="0.5" max="3" step="0.01" value="1.5"><div class="control-meta"><span>Abstract initial book health</span><span id="averageHealthFactorDelta">Stressed —</span></div><p>User assumption, not measured Kamino account health</p></div>
+        <div class="notional"><label for="notional">Tested liquidation exposure <span>USD</span></label><input id="notional" type="number" value="100000" min="1" max="10000000" step="1000"><div class="presets" aria-label="Notional presets"><button type="button" data-notional="25000">25K</button><button type="button" data-notional="100000">100K</button><button type="button" data-notional="250000">250K</button><button type="button" data-notional="1000000">1M</button></div><p class="helper">A test position, not total reserve debt.</p></div>
+      </fieldset>
+      <div class="scenario-presets"><span class="eyebrow">TRY A SCENARIO</span><div><button id="navShock" type="button">NAV −20%</button><button id="depthShock" type="button">Depth −80%</button><button id="combined" type="button">Combined stress ↘</button></div></div>
+    </section>
+
+    <div class="results">
+      <section class="risk-banner panel" id="riskBanner" aria-live="polite"><div class="risk-heading"><span class="eyebrow">02 / FIRST BINDING CONSTRAINT</span><span id="riskStatus" class="status">LOADING</span></div><h2 id="dominantReason">Loading the risk baseline…</h2><p id="dominantDetail">Source availability is checked before calculating a scenario.</p><div class="risk-tags" id="riskTags"></div></section>
+      <section class="headline-metrics" aria-label="Scenario outcomes"><div><span>RWA safe LTV</span><strong id="safeLtv">—</strong><small id="ltvGap">vs Kamino —</small></div><div><span>Max new borrow</span><strong id="maxBorrow">—</strong><small id="borrowGate">Gate —</small></div><div><span>Stressed Avg HF</span><strong id="stressedHF">—</strong><small id="healthBuffer">Boundary 1.00</small></div></section>
+
+      <section class="panel boundaries" aria-labelledby="boundaryTitle"><div class="panel-head"><div><span class="eyebrow">03 / RISK BOUNDARY</span><h2 id="boundaryTitle">When does this break?</h2></div><span class="badge subtle">RECOMPUTED LOCALLY</span></div><p class="helper">One variable moves toward stress; all others hold at your selected values. A boundary may already be crossed.</p><div id="boundaries" class="boundary-grid"></div></section>
+
+      <div class="two-panels">
+        <section class="panel" aria-labelledby="waterfallTitle"><div class="panel-head"><div><span class="eyebrow">04 / TEST POSITION</span><h2 id="waterfallTitle">From price to cash.</h2></div></div><div id="waterfall" class="waterfall"></div><div class="metric-foot"><span>Liquidation recovery</span><strong id="recovery">—</strong></div><p id="recoveryNote" class="helper">After the RWA liquidator bonus.</p></section>
+        <section class="panel" aria-labelledby="reserveTitle"><div class="panel-head"><div><span class="eyebrow">05 / RESERVE PRESSURE</span><h2 id="reserveTitle">Borrowed ≠ recoverable.</h2></div></div><div class="reserve-bar" aria-hidden="true"><span id="reserveBar"></span></div><dl id="reserveMetrics" class="metric-list"></dl><p class="helper">Scenario borrowed = fixed TVL × utilization. AMM liquidity is a separate execution market.</p></section>
+      </div>
+      <section class="panel" aria-labelledby="comparisonTitle"><div class="panel-head"><div><span class="eyebrow">06 / LENDING CAPACITY</span><h2 id="comparisonTitle">Kamino config × RWA recommendation.</h2></div></div><div class="table-scroll"><table><thead><tr><th>Tested collateral</th><th>Kamino configuration</th><th>RWA Shield scenario</th></tr></thead><tbody id="comparison"></tbody></table></div><p class="helper">RWA Shield recommends lending capacity under the selected liquidation assumptions. This is a comparison, not a claim that a protocol configuration is incorrect.</p></section>
+      <section class="panel" aria-labelledby="healthTitle"><div class="panel-head"><div><span class="eyebrow">07 / BOOK HEALTH</span><h2 id="healthTitle">An independent stress assumption.</h2></div></div><div id="healthMetrics" class="health-metrics"></div><p class="helper">Stressed Average HF = initial Average HF × stressed executable collateral / baseline executable collateral. This abstract aggregate does not describe individual accounts or identify liquidatable borrowers.</p></section>
+    </div>
+  </div>
+  <section class="panel sources-panel" aria-labelledby="sourcesTitle"><div class="panel-head"><div><span class="eyebrow">DATA LINEAGE</span><h2 id="sourcesTitle">Know what you are looking at.</h2></div></div><div id="sources" class="source-grid"></div><details><summary>Model assumptions & limitations</summary><ul><li>Reserve pressure, tested collateral and average borrower health are separate models.</li><li>NAV/reference data may be an explicitly labelled proxy. Issuer NAV and Kamino oracle prices remain distinct.</li><li>Offline execution uses a deterministic depth curve, not an executable trading quote.</li><li>The existing ECV engine supplies lending haircuts and breakers. Scenario results are illustrative risk analysis, not historical validation.</li><li>Unavailable protocol parameters remain unavailable; no generic utilization kink is assumed.</li></ul></details></section>
+  <footer><span>RWA SHIELD / RISK LAB</span><span>Price is a mark. Execution is the test.</span><a href="/">Open original ECV demo ↗</a></footer>
+</main>
+</body>
+</html>
