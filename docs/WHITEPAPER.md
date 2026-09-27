@@ -117,7 +117,8 @@ Branch `feat/rwa-shield-kamino-risk-dashboard` (PR #3, open, not merged) adds an
 - **Four stress axes.** Utilization, NAV, AMM liquidity and average health factor. The reserve TVL is held fixed. The NAV reference is an explicit **Kamino oracle proxy**, not an independent issuer NAV. Average HF is an abstract book parameter, not a measurement of user accounts.
 - **Stress sandbox.** An explicit experiment mode that assumes a fresh price while keeping real provenance. Its SAFE/WARNING/CRITICAL statuses are prefixed MODELED and labeled **NOT A CURRENT LENDING SIGNAL**. Current/replay modes close the borrow gate on stale or unverified data.
 - **NAV × AMM map.** 864 sampled scenarios computed by the same engine (`docs/KAMINO_RISK_LAB.md`).
-- **Tests (PR #3 body).** `node --test src/**/*.test.mjs`: 59/59 pass; backtest passes with six scenarios.
+- **Tests.** The PR #3 body reports `node --test src/**/*.test.mjs` at 59/59 pass, with the backtest passing on six scenarios. After the branding commits of 27.09.2026 (`7134ce7`, `3226244`), `docs/KAMINO_QA.md` on that branch reports 78/78 tests pass and the backtest passing.
+- **Branding (27.09.2026).** The dashboard now uses the original logo and header banner of the @RWASHIELDPL X profile, with provenance in `docs/BRAND.md` on the PR #3 branch. This is a presentation change only; data, Jupiter quotes and the financial engine are unchanged.
 
 Warsaw stage example (deck S4, recorded snapshot + stress sandbox): TSLAx, $100k, weekend. Price $372.08 (Kamino Scope proxy) · ECV $84,358 · haircut ~15.6% · safe max borrow $58,684 vs Kamino LTV $55,000 → **WARNING**. These are model outputs in sandbox mode, not a lending signal.
 

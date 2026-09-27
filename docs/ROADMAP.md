@@ -14,7 +14,7 @@ This roadmap lists only milestones that already appear as planned in the project
 | Program deployed on Solana devnet (`5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`) | 26.09.2026 | `onchain/README.md`, deck S6 |
 | Last ECV record posted on devnet | 26.09.2026, 19:55 (Warsaw) | deck S6 |
 | Periodic poster `--every-sec`; PR #2 merged into `main` | 27.09.2026 | git history |
-| PR #3: Kamino × xStocks `/risk` dashboard (recorded snapshot, Jupiter quote ladder, stress sandbox) (open, not merged) | 27.09.2026 | PR #3 |
+| PR #3: Kamino × xStocks `/risk` dashboard (recorded snapshot, Jupiter quote ladder, stress sandbox), with @RWASHIELDPL branding added in a later commit; 78/78 tests reported (open, not merged) | 27.09.2026 | PR #3, `docs/KAMINO_QA.md`, `docs/BRAND.md` |
 | PR #4: SPYx mint fix in poster, `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W` (open, not merged) | 27.09.2026 | PR #4 |
 | Warsaw pitch | 27.09.2026 | deck S1 |
 
