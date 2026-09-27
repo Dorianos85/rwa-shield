@@ -7,6 +7,7 @@ const axes = ['utilization', 'navPrice', 'ammLiquidityUsd', 'averageHealthFactor
 const app = { baseline: null, current: null, markets: [], request: 0, frame: null, loadedAt: 0 };
 const query = new URLSearchParams(location.search);
 if (query.get('offline') === '1') $('dataMode').value = 'offline';
+if (['offline', 'synthetic'].includes(query.get('execution'))) $('executionMode').value = query.get('execution');
 if (['snapshot-replay', 'sandbox'].includes(query.get('mode'))) $('valuationMode').value = query.get('mode');
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
@@ -36,7 +37,7 @@ function scenario() {
 }
 
 async function fetchJson(path) {
-  const response = await fetch(path, { signal: AbortSignal.timeout(25000) });
+  const response = await fetch(path, { signal: AbortSignal.timeout(60000) });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
   return body;
@@ -69,10 +70,12 @@ async function boot() {
 
 async function loadBaseline(refresh = false) {
   const request = ++app.request;
-  const controls = ['market', 'asset', 'refresh', 'dataMode'];
+  const controls = ['market', 'asset', 'refresh', 'dataMode', 'executionMode'];
   controls.forEach(id => { $(id).disabled = true; });
-  text('refresh', '↻ Loading');
-  const params = new URLSearchParams({ market: $('market').value, symbol: $('asset').value, offline: $('dataMode').value === 'offline' ? '1' : '0' });
+  text('refresh', $('executionMode').value === 'jupiter' ? '↻ Quoting Jupiter…' : '↻ Loading');
+  const params = new URLSearchParams({ market: $('market').value, symbol: $('asset').value,
+    offline: $('dataMode').value === 'offline' ? '1' : '0', execution: $('executionMode').value,
+    notional: $('notional').value });
   if (refresh) params.set('refresh', '1');
   try {
     const baseline = await fetchJson('/api/risk/baseline?' + params);
@@ -115,6 +118,7 @@ function resetControls() {
   $('ammLiquidityUsd').max = String(Math.max(1, (depth ?? 0) * policy.liquidityRangeMultiplier));
   $('ammLiquidityUsd').step = 'any';
   $('ammLiquidityUsd').value = depth ?? 0;
+  $('ammLiquidityUsd').disabled = app.baseline.execution.available === false || !(depth > 0);
   $('averageHealthFactor').max = String(policy.maxAverageHealthFactor);
   $('averageHealthFactor').value = policy.defaultAverageHealthFactor;
 }
@@ -131,6 +135,7 @@ function bindEvents() {
   $('market').addEventListener('change', () => { updateAssets($('asset').value); loadBaseline(); });
   $('asset').addEventListener('change', () => loadBaseline());
   $('dataMode').addEventListener('change', () => loadBaseline());
+  $('executionMode').addEventListener('change', () => loadBaseline());
   $('valuationMode').addEventListener('change', () => {
     queueRender(); renderSources();
     const next = new URL(location.href); next.searchParams.set('mode', $('valuationMode').value); history.replaceState(null, '', next);
@@ -174,9 +179,13 @@ function render() {
     text('navPriceValue', usd(asset.navPriceScenario));
     text('navPriceBase', `Reference ${usd(asset.navPriceCurrent)}`);
     text('navPriceDelta', `${signed(asset.navShockPct)}% shock`);
-    text('ammLiquidityUsdValue', compact(execution.ammLiquidityScenarioUsd));
-    text('ammLiquidityUsdBase', `Baseline ${compact(execution.ammLiquidityCurrentUsd)}`);
+    const executionAvailable = baseline.execution.available !== false;
+    text('ammLiquidityUsdValue', executionAvailable ? compact(execution.ammLiquidityScenarioUsd) : 'Unavailable');
+    text('ammLiquidityUsdBase', executionAvailable ? `Baseline ${compact(execution.ammLiquidityCurrentUsd)}` : 'No measured baseline');
     text('ammLiquidityUsdDelta', execution.ammLiquidityCurrentUsd > 0 ? `${num(execution.ammLiquidityScenarioUsd / execution.ammLiquidityCurrentUsd * 100, 0)}% remaining` : 'No baseline depth');
+    text('executionNote', !executionAvailable ? baseline.execution.source?.fallbackReason || 'Jupiter quotes unavailable. Refresh to retry.'
+      : baseline.execution.measured ? `Jupiter → USDC · largest tested sale within ${num(baseline.execution.maxImpactPct ?? baseline.rwaParams.maxImpactPct, 1)}% impact${baseline.execution.censored ? ' · lower bound' : ''}`
+      : 'Explicit synthetic sandbox assumption · not Jupiter data');
     text('averageHealthFactorValue', num(health.averageHealthFactorInitial));
     text('averageHealthFactorDelta', `Stressed ${num(health.averageHealthFactorStressed)}`);
     renderCurrent(r);
@@ -237,7 +246,10 @@ function renderCurrent(r) {
     ['USDC borrowed (USD)', compact(reserve.currentBorrowedUsd), 'USDC RESERVE'], ['USDC available (USD)', compact(reserve.currentAvailableUsd), 'USDC RESERVE LIQUIDITY'],
     [`${collateralReserve.symbol} configured LTV`, pct(collateralReserve.configuredLtv), 'COLLATERAL PARAMETER'], [`${collateralReserve.symbol} liquidation threshold`, pct(collateralReserve.liquidationThreshold), 'COLLATERAL PARAMETER'],
     ['NAV / reference price', usd(asset.navPriceCurrent), app.baseline.asset.source?.independentNav === false ? 'ORACLE PROXY · NO ISSUER NAV' : app.baseline.asset.navType || 'SOURCE DETAILS BELOW'], ['Kamino oracle price', usd(asset.kaminoOraclePrice), 'OBSERVED · NOT SLIDER'],
-    ['AMM execution depth', compact(execution.ammLiquidityCurrentUsd), app.baseline.execution.source?.fallback ? 'MODELLED FALLBACK' : 'EXECUTION BASELINE'], ['Average HF assumption', num(r.health.averageHealthFactorInitial), 'ABSTRACT · NOT OBSERVED']
+    ['AMM execution depth', app.baseline.execution.available === false ? 'Unavailable' : compact(execution.ammLiquidityCurrentUsd),
+      app.baseline.execution.available === false ? 'NO JUPITER OBSERVATION' : app.baseline.execution.measured
+        ? app.baseline.execution.source?.cached ? 'JUPITER · LAST MEASURED' : 'JUPITER · QUOTED DEPTH' : 'SYNTHETIC · EXPLICIT MODE'],
+    ['Average HF assumption', num(r.health.averageHealthFactorInitial), 'ABSTRACT · NOT OBSERVED']
   ];
   $('currentCards').innerHTML = cards.map(([label, value, note]) => `<div class="current-card"><span>${escape(label)}</span><strong>${escape(value)}</strong><small>${escape(note)}</small></div>`).join('');
 }
@@ -284,7 +296,8 @@ function renderSources() {
     const time = source.timestamp ? String(source.timestamp) : 'Unavailable';
     const age = finite(source.ageSec) ? `${num(source.ageSec, 0)} seconds at fetch` : 'Unknown source age';
     const provenance = typeof source.source === 'string' ? source.source : 'Source unavailable';
-    const link = /^https:\/\//.test(provenance) ? `<a href="${escape(provenance)}" target="_blank" rel="noreferrer">Source endpoint ↗</a>` : '';
+    const endpoint = source.endpoint || provenance;
+    const link = /^https:\/\//.test(endpoint) ? `<a href="${escape(endpoint)}" target="_blank" rel="noreferrer">Source endpoint ↗</a>` : '';
     const notes = [source.fallbackReason, item.navType, item.referenceLabel, item.referenceReason, item.note, item.disclaimer, item.priceTimestampReason, ...(item.modeledAssumptions || []), ...(item.notes || [])].filter(value => typeof value === 'string');
     return `<article class="source-card"><h3>${escape(label)}</h3><span class="badge ${source.live && !source.fallback ? 'live' : ''}">${state}</span><p>${escape(provenance)}<br>Timestamp: ${escape(time)}<br>Age: ${escape(age)}</p>${link}${notes.map(note => `<p>${escape(note)}</p>`).join('')}</article>`;
   }).join('');

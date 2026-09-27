@@ -48,6 +48,15 @@ test('offline HTTP integration preserves legacy routes and validates risk-lab re
   assert.equal(baseline.reserve.source.live, false);
   assert.equal(baseline.asset.source.live, false);
   assert.equal(baseline.execution.source.live, false);
+  assert.equal(baseline.execution.available, false);
+  assert.equal(baseline.execution.routableUsd, 0);
+  assert.deepEqual(baseline.execution.curve, []);
+  const { data: forcedOffline } = await get('/api/risk/baseline?symbol=TSLAx&execution=jupiter');
+  assert.equal(forcedOffline.execution.available, false, 'RISK_OFFLINE prevents all Jupiter requests');
+  const { data: explicitSynthetic } = await get('/api/risk/baseline?symbol=TSLAx&execution=synthetic');
+  assert.equal(explicitSynthetic.execution.measured, false);
+  assert.ok(explicitSynthetic.execution.curve.length > 0);
+  assert.equal(explicitSynthetic.execution.source.live, false);
   assert.equal(baseline.fundingReserve.symbol, 'USDC');
   assert.equal(baseline.fundingReserve.market, baseline.reserve.market);
   assert.notEqual(baseline.fundingReserve.reserve, baseline.reserve.reserve);
@@ -78,7 +87,7 @@ test('offline HTTP integration preserves legacy routes and validates risk-lab re
     '/api/risk/compare?utilization=1', '/api/risk/compare?notional=Infinity',
     '/api/risk/compare?notional=-5', '/api/risk/compare?notional=1000000000000',
     '/api/risk/compare?navPrice=NaN', '/api/risk/compare?averageHealthFactor=',
-    '/api/risk/compare?mode=live-ish', '/api/risk/baseline?symbol=FAKEx',
+    '/api/risk/compare?mode=live-ish', '/api/risk/baseline?symbol=FAKEx', '/api/risk/baseline?execution=unknown',
     '/api/risk/baseline?market=not-a-market',
     '/api/risk/baseline?market=11111111111111111111111111111111'
   ]) {

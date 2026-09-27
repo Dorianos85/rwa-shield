@@ -9,7 +9,7 @@ import { getLiquidity } from '../data/liquidity.mjs';
 async function baseline() {
   const { reserve, fundingReserve } = await getKaminoReservePair({ symbol: 'TSLAx', offline: true });
   const asset = getXstockAsset({ reserve });
-  const execution = await getLiquidity({ reserve, asset, offline: true });
+  const execution = await getLiquidity({ reserve, asset, synthetic: true });
   return { reserve, fundingReserve, asset, execution, scenario: { mode: 'sandbox',
     // Explore all three regions below the observed USDC rate-curve breakpoint.
     utilization: 0.5, navPrice: asset.navPrice,

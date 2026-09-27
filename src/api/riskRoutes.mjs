@@ -18,6 +18,8 @@ export async function handleRiskRequest(req, res, url, rwaParams) {
       offline: query.get('offline') === '1' || process.env.RISK_OFFLINE === '1',
       refresh: query.get('refresh') === '1'
     };
+    const executionMode = query.get('execution') || (options.offline ? 'offline' : 'jupiter');
+    if (!['jupiter', 'offline', 'synthetic'].includes(executionMode)) throw badRequest('invalid_execution_source');
     if (url.pathname === '/api/kamino/markets') {
       const result = await getKaminoMarkets(options);
       return reply(res, 200, Array.isArray(result) ? { markets: result } : result);
@@ -33,7 +35,10 @@ export async function handleRiskRequest(req, res, url, rwaParams) {
     if (url.pathname === '/api/kamino/reserve') return reply(res, 200, reserve);
     let asset = await getXstockAsset({ reserve, ...options });
     if (url.pathname === '/api/xstocks/asset') return reply(res, 200, asset);
-    let execution = await getLiquidity({ reserve, asset, notionalUsd, ...options });
+    let execution = await getLiquidity({ reserve, asset, notionalUsd, refresh: options.refresh,
+      maxImpactPct: rwaParams.maxImpactPct,
+      offline: process.env.RISK_OFFLINE === '1' || executionMode === 'offline',
+      synthetic: executionMode === 'synthetic' });
     // Acquisition latency counts toward validity. A slow quote ladder must not
     // return a fresh-price signal based on the price age before that ladder ran.
     reserve = { ...reserve, source: ageSource(reserve.source) };
@@ -42,7 +47,7 @@ export async function handleRiskRequest(req, res, url, rwaParams) {
     if (fundingReserve) fundingReserve = { ...fundingReserve, source: ageSource(fundingReserve.source) };
     if (url.pathname === '/api/liquidity') return reply(res, 200, execution);
     const baseline = {
-      reserve, fundingReserve, fundingReserveUnavailable, asset, execution, rwaParams,
+      reserve, fundingReserve, fundingReserveUnavailable, asset, execution, executionMode, rwaParams,
       sources: { kamino: reserve.source, fundingReserve: fundingReserve?.source ?? null, xstocks: asset.source, execution: execution.source }
     };
     if (url.pathname === '/api/risk/baseline') return reply(res, 200, baseline);

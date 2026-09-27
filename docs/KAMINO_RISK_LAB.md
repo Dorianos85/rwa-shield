@@ -20,7 +20,7 @@ $env:RISK_OFFLINE='1'
 node src/api/server.mjs
 ```
 
-Offline oznacza zapisany pomiar Kamino i jawny model krzywej egzekucji.
+Kamino data = Offline snapshot oznacza zapisany pomiar Kamino. AMM source jest niezależne: domyślnie Jupiter quotes, również przy snapshotcie Kamino. Offline / last measured używa tylko istniejącego cache pomiarów; Synthetic sandbox wymaga jawnego wyboru.
 Nie oznacza aktualnych danych. Tryb wyceny i tryb pozyskania danych są osobne.
 
 `Current freshness` zamyka bramkę nowego kredytu przy starych lub niezweryfikowanych
@@ -48,7 +48,7 @@ offline, bez nowych bibliotek, także na małym ekranie.
 
 - `src/data/kamino.mjs`: oficjalne metryki, konfiguracja rezerw, cache i zapisany pomiar.
 - `src/data/xstocks.mjs`: zweryfikowany mint i jawny proxy ceny referencyjnej.
-- `src/data/liquidity.mjs`: sondowanie Jupitera i oznaczony model offline.
+- `src/data/liquidity.mjs`: rzeczywiste kwotowania Jupitera, cache pomiarów i osobno wybierany model syntetyczny.
 - `src/risk/kaminoRisk.mjs`: czyste obliczenia i numeryczne granice scenariusza.
 - `src/api/riskRoutes.mjs`: nowe endpointy, walidacja zapytań i integracja źródeł.
 - `web/risk.*`: panel vanilla JS. Importuje ten sam moduł ryzyka co API.
@@ -141,8 +141,9 @@ proxy i NAV scenariusza mają osobne pola. Nie można na ich podstawie wnioskowa
 o niezależnym odchyleniu issuer NAV od oracla. Zmienność jest istniejącym priorem
 modelu, nie nowym pomiarem historycznym.
 
-Publiczny Jupiter może odmówić dostępu lub wymagać klucza. Wtedy krzywa syntetyczna
-jest jawnie oznaczona i nie może udawać LIVE. Wiek obserwacji i wiek publikacji
+Publiczny Jupiter udostępnia kwotowania bez klucza (0,5 żądania/s). Przy awarii
+pozostaje ostatni pomiar lub jawny brak danych; krzywa syntetyczna wymaga osobnego
+wyboru. Wiek obserwacji i wiek publikacji
 ceny nie są utożsamiane. Zapisany pomiar zachowuje oryginalne znaczniki czasu.
 
 ## Decyzja dotycząca PR #1
@@ -169,7 +170,7 @@ GET /api/risk/baseline?market=…&symbol=SPYx
 GET /api/risk/compare?symbol=SPYx&utilization=0.92&averageHealthFactor=1.8
 ```
 
-Opcje `offline=1`, `refresh=1`. Porównanie przyjmuje `navPrice`, `ammLiquidityUsd`,
+Opcje `offline=1`, `refresh=1`, `execution=jupiter|offline|synthetic`. Dashboard domyślnie wybiera Jupiter; `offline=1` dotyczy wtedy tylko Kamino. Bez jawnego `execution` API zachowuje offline dla obu źródeł. Porównanie przyjmuje `navPrice`, `ammLiquidityUsd`,
 `notional`, `mode=current|snapshot-replay|sandbox`. Niepoprawne dane wejściowe zwracają
 HTTP 400; metoda inna niż GET zwraca 405. Istniejące `/api/state`, `/api/ecv`,
 `/api/backtest`, `/api/agents` zachowują kontrakty.

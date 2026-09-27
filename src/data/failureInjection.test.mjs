@@ -92,7 +92,7 @@ test('missing oracle timestamp remains unknown instead of becoming a fresh NAV',
   assert.equal(asset.issuerNav.available, false);
 });
 
-test('Jupiter transport/auth failures and invalid JSON remain explicit synthetic fallback', async t => {
+test('Jupiter transport/auth failures and invalid JSON remain unavailable without invented liquidity', async t => {
   configuredJupiter(t);
   const data = await fixture();
   const failures = [
@@ -109,6 +109,10 @@ test('Jupiter transport/auth failures and invalid JSON remain explicit synthetic
     assert.equal(execution.source.live, false);
     assert.equal(execution.source.fallback, true);
     assert.equal(execution.measured, false);
+    assert.equal(execution.available, false);
+    assert.equal(execution.routableUsd, 0);
+    assert.equal(execution.source.timestamp, null);
+    assert.deepEqual(execution.curve, []);
     assert.ok(execution.source.fallbackReason);
     assert.ok(execution.curve.every(p => Number.isFinite(p.outUsd)));
   }

@@ -39,19 +39,19 @@ export function mountRiskChart({ onApply }) {
     $('chartPointStatus').style.color = INK[r.overallStatus];
     $('chartPointMetrics').innerHTML = [
       ['NAV / reference', money(r.asset.navPriceScenario)],
-      ['AMM liquidity', money(r.execution.ammLiquidityScenarioUsd)],
+      ['AMM liquidity', input.execution.available === false ? 'Unavailable' : money(r.execution.ammLiquidityScenarioUsd)],
       ['ECV', money(r.rwaShield.ecv)],
       ['Recovery', money(r.rwaShield.recovery)],
       ['Stressed Avg HF', Number.isFinite(r.health.averageHealthFactorStressed) ? r.health.averageHealthFactorStressed.toFixed(2) : 'Unavailable']
     ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
     $('chartPointReason').textContent = r.dominantReason;
-    $('applyChartPoint').disabled = !point;
+    $('applyChartPoint').disabled = !point || input.execution.available === false || !(input.execution.routableUsd > 0);
     const x = point ? xOf(point.navPrice) : 0, y = point ? yOf(point.ammLiquidityUsd) : 0;
     $('chartHover').innerHTML = point ? `<path d="M${PLOT.x} ${y}H${PLOT.x + PLOT.width} M${x} ${PLOT.y}V${PLOT.y + PLOT.height}" stroke="#e6eff0" opacity=".65" stroke-dasharray="4 5" fill="none"/><circle cx="${x}" cy="${y}" r="5" fill="${INK[r.overallStatus]}" stroke="#071014" stroke-width="2"/>` : '';
   }
 
   function apply() {
-    if (!preview) return;
+    if (!preview || $('applyChartPoint').disabled) return;
     const point = { ...preview };
     preview = null;
     onApply(point);

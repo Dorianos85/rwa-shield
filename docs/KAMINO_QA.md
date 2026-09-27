@@ -164,5 +164,23 @@ Lokalny screenshot dowodowy: `.qa/risk-desktop.png` (celowo poza Gitem).
 - Backtest sześciu scenariuszy PASS, integracyjny `/api/ecv` 200, konsola bez błędów.
 - Zrzut lokalny `.qa/risk-usdc.png` (poza Gitem).
 
+## Uzupełnienie — początkowa płynność z Jupitera
+
+- 78/78 testów PASS; backtest sześciu scenariuszy PASS; legacy `/api/ecv` 200.
+- Rzeczywisty pomiar TSLAx → USDC z `api.jup.ag`, bez klucza:
+  najstarsze kwotowanie 2026-09-27T14:14:57.081Z, osiem wielkości sprzedaży.
+  $250k: impact 1,2423%; $500k: 3,6125%. Dla limitu 2,5% początkowa
+  głębokość wynosi $250k. To wynik konkretnej drabiny, nie stały parametr.
+- Przeglądarka: Jupiter quotes wybrane domyślnie przy snapshotcie Kamino;
+  suwak startuje z $250k, Home stresuje do zera, Reset wraca do $250k.
+  Offline zachowuje ten sam czas rzeczywistego pomiaru; model $400k pojawia
+  się tylko po jawnym wyborze Synthetic sandbox. Powrót do Jupiter pobiera pomiar.
+- 390 px: bez poziomego overflow po dodaniu wyboru źródła AMM.
+- Niezależny review: brak blockerów; scheduler 2 s, timestamp cache,
+  missing/unavailable oraz konserwatywne granice przetestowane oddzielnie.
+- Dowody lokalne: `.qa/jupiter-live-evidence.json`, `.qa/risk-jupiter.png`.
+- Ograniczenie: kilka równoległych klientów dzieli limit keyless i może wymagać
+  ponowienia po timeout. Wiek najstarszego kwotowania pozostaje zachowany.
+
 Push i PR wykonuje orkiestrator po tej weryfikacji; dowód stanowi link PR i
 historia commitów. Nie ma automatycznego merge ani publicznego deploymentu.

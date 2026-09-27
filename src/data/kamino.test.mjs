@@ -86,10 +86,10 @@ test('reference proxy preserves price age and explicitly marks NAV/volatility li
   assert.equal(asset.source.live, false);
 });
 
-test('liquidity fallback never claims live and finite quote ladder worsens with size', async () => {
+test('explicit synthetic liquidity never claims live and finite quote ladder worsens with size', async () => {
   const reserve = await getKaminoReserve(offline);
   const asset = getXstockAsset({ reserve });
-  const execution = await getLiquidity({ reserve, asset, offline: true });
+  const execution = await getLiquidity({ reserve, asset, synthetic: true });
   assert.equal(execution.source.live, false);
   assert.equal(execution.measured, false);
   assert.equal(execution.source.fallback, true);
