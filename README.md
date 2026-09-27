@@ -1,92 +1,113 @@
-# RWA Shield — Executable Collateral Value
+# RWA Shield — Executable Collateral Value (ECV)
 
-**Landing:** https://dorianos85.github.io/rwa-shield/
-**Live demo path:** `DEMO_RUNBOOK.md`
+**Oracle price is not cash.** RWA Shield computes **Executable Collateral Value (ECV)**: the USDC a lending venue can actually recover from a tokenized-stock collateral position under stress, instead of the oracle mark.
 
-**Kamino × xStocks Risk Lab:** po uruchomieniu serwera otwórz
-`http://localhost:8787/risk`. Cztery niezależne suwaki stresu, stałe TVL wybranej
-rezerwy, granice ryzyka i jawne pochodzenie danych. [Model, źródła i instrukcja](docs/KAMINO_RISK_LAB.md).
+- Landing page: https://dorianos85.github.io/rwa-shield/
+- Risk Lab (recorded snapshot, static): https://dorianos85.github.io/rwa-shield/risk/
+- X: [@RWASHIELDPL](https://x.com/RWASHIELDPL) · Pitch deck: [`docs/deck/RWA-Shield-Pitch-Deck.pdf`](docs/deck/RWA-Shield-Pitch-Deck.pdf)
 
-Warstwa ryzyka dla lendingu pod tokenizowane akcje na Solanie. Zamiast stałego LTV
-liczy **ECV** — kwotę USDC, jaką likwidacja pozycji realnie zwróci w obecnych
-warunkach płynności, sesji giełdowej i zmienności.
+## Status (honest labels)
+
+| Piece | State |
+|---|---|
+| ECV engine (`src/ecv/`) | Off-chain, open source, Node 20+, **zero npm dependencies**. Prototype. |
+| Anchor program `ecv_oracle` (`onchain/`) | Deployed on **Solana devnet** on 26.09.2026. Program ID [`5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc`](https://explorer.solana.com/address/5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc?cluster=devnet). Publishes ECV outputs; does not enforce them. One record posted so far (26.09.2026, single-authority signer, synthetic route). **Not on mainnet. Not audited.** |
+| Kamino × xStocks Risk Lab (`/risk`) | Runs locally against live or offline data; the public copy in `docs/risk/` is a **recorded snapshot** (Kamino API, 27.09.2026 13:50 Warsaw) with a **synthetic** AMM depth curve. Not a lending signal. |
+| Backtest (`src/backtest/`) | **Synthetic, in-sample** (generated price series; parameters fitted on the same series). Not historical validation. |
+| Business | No customers, no revenue, no partnerships. |
+
+## How ECV works
 
 ```
-ECV = P_oracle × D(q) × S(q) × M(t) × V(σ)          B = breaker (bramkuje nowy kredyt)
+ECV = P_oracle × q × D(q) × S(q) × M(t) × V(σ)          B = breaker (gates new credit)
 ```
 
-## Uruchomienie (zero instalacji, Node 20+)
+`D` = routable depth for this size, `S` = slippage / price impact, `M` = market-session buffer, `V` = volatility buffer. Every term is a factor in (0, 1].
+
+The engine returns five outputs (a frozen contract, see `AGENTS.md`):
+
+| Output | Meaning |
+|---|---|
+| `max_borrow` | Maximum new USDC borrow against the position (0 when the breaker is on) |
+| `collateral_cap` | Cap on how much of this collateral a venue should accept |
+| `liquidation_route` | The execution route the value is based on |
+| `risk_premium` | Rate premium rising with slippage, session and volatility risk |
+| `borrow_disabled` | Breaker: stale price, depth below floor, or extreme impact |
+
+Two modelling decisions:
+
+1. **The breaker gates new credit, not the value of existing collateral.** Marking open positions to zero on a stale feed would liquidate the whole book — exactly the cascade we want to prevent. `borrow_disabled = true`, but `executableValue` stays.
+2. **Health factor is measured against executable value, not ECV.** The session haircut protects the pool when credit is *granted*; applying it to the mark would liquidate healthy positions every Friday evening.
+
+## Quickstart (Node 20+, no `npm install`)
 
 ```bash
-node src/api/server.mjs      # dashboard demo:  http://localhost:8787
-node --test src/ecv/*.test.mjs
-node src/backtest/run.mjs    # tabela scenariuszy
-node src/agents/swarm.mjs    # kalibrator -> backtest -> adwersarz
+npm test                      # full unit/integration suite (node --test)
+npm run dev                   # = node src/api/server.mjs → http://localhost:8787
+                              #   /      legacy ECV demo
+                              #   /risk  Kamino × xStocks Risk Lab
+npm run backtest              # six synthetic stress scenarios (uses data/params.fitted.json)
+PARAMS_MODE=priors npm run backtest   # same, with unfitted default parameters
+npm run calibrate             # re-fits parameters, rewrites data/params.fitted.json
+node scripts/export-static.mjs        # rebuilds docs/risk/ from data/kamino.snapshot.json
 ```
 
-Brak `npm install`. Brak build stepu. To jest celowe: w nocy przed pitchem każda
-zależność to ryzyko, że coś nie ruszy na cudzym laptopie.
+Offline Risk Lab (no network): `http://localhost:8787/risk?offline=1&execution=synthetic&mode=sandbox`.
+Live Jupiter quotes are rate limited; set `JUP_API_KEY` for a keyed endpoint. See [`docs/KAMINO_RISK_LAB.md`](docs/KAMINO_RISK_LAB.md) and [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md).
 
-## Co tu jest i dlaczego
+On-chain (Rust/Anchor, separate Cargo workspace): see [`onchain/README.md`](onchain/README.md) — `anchor build`, `cargo test --workspace`, and the Rust poster that posts an ECV record (`--every-sec` for scheduled re-posts).
 
-| Plik | Odpowiada za | Zasada |
-|---|---|---|
-| `src/ecv/model.mjs` | sześć członów ECV, health factor, recovery | czyste funkcje, zero I/O, w pełni testowalne |
-| `src/ecv/params.mjs` | parametry + ich granice | każda liczba ma granice, bo kalibrator w nich szuka |
-| `src/data/jupiter.mjs` | realny impact i trasa z Jupitera + fallback offline | mierzymy egzekucję, nie zakładamy jej |
-| `src/data/session.mjs` | stan sesji NYSE w UTC, godziny do otwarcia | 63% obrotu dzieje się przy zamkniętym rynku |
-| `src/data/volatility.mjs` | realized vol, odchylenia od średniej | |
-| `src/backtest/engine.mjs` | ta sama książka pożyczek wyceniona dwoma modelami | |
-| `src/backtest/scenarios.mjs` | 6 scenariuszy stresu | |
-| `src/agents/*` | kalibrator, adwersarz, monitor, swarm | |
-| `src/api/server.mjs` | API + host dashboardu, zero zależności | |
-| `web/index.html` | demo: wodospad wyceny, stress, backtest, agenci | |
+## Backtest — synthetic, in-sample
 
-## Dwie decyzje modelowe, o które zapyta sędzia
+110 days of **generated** hourly prices (2,640 points) with weekend gaps; positions opened every 7 h; liquidation delay depends on the session (1 h in session, 16 h over a weekend). Benchmark: fixed 70% LTV on the oracle price.
 
-**1. Breaker bramkuje nowy kredyt, nie wycenę istniejącego zabezpieczenia.**
-Gdyby stary feed zerował wycenę otwartych pozycji, każda awaria oracla
-likwidowałaby całą książkę — czyli dokładnie kaskada, której mamy zapobiegać.
-`borrow_disabled = true`, ale `executableValue` zostaje.
-
-**2. Health factor liczy się od wartości egzekucyjnej, nie od ECV.**
-Haircut za zamknięty rynek chroni pulę **przy udzielaniu** kredytu. Gdyby wchodził
-też do marku, w każdy piątek wieczorem likwidowalibyśmy zdrowe pozycje.
-
-## Co model potrafi — wyniki backtestu
-
-110 dni godzinowych danych, pozycje otwierane co 7h, zapadalność 96h,
-likwidacja z opóźnieniem zależnym od sesji (1h w sesji, 16h w weekend — bo nikt
-nie chce brać inwentarza, którego nie może zahedgować).
-
-| Scenariusz | Zły dług: stałe 70% LTV | Zły dług: ECV | Kredyt vs fixed |
+| Scenario | Bad debt, fixed 70% LTV | Bad debt, ECV | ECV credit vs fixed |
 |---|---|---|---|
-| Rynek bazowy | $0 | $0 | 100% |
-| Weekend gap −14% | $0 | $0 | 22% |
-| **Ogon: gap −22% w weekend + cienka księga** | **$3 982 378** | **$0** | 0% |
-| Zapaść płynności −70% | $297 220 | $0 | 0% |
-| Gap spółki −18% (earnings) | $0 | $0 | 20% |
+| Calm base market | $0 | $0 | 99.6% |
+| Weekend gap −14% | $0 | $0 | 22.3% |
+| **Tail: −22% weekend gap + thin book** | **$3,982,378** | **$0** | 0% (369 loans refused) |
+| Liquidity crunch (−70% depth) | $297,220 | $0 | 0% |
+| Single-stock gap −18% (earnings) | $0 | $0 | 20.0% |
+| Volatility spike (earnings) | $0 | $0 | 22.3% |
 
-Czytanie: w spokojnym rynku ECV pożycza tyle samo co model ze stałym LTV
-(różnica 0,4%). Cena za bezpieczeństwo pojawia się dopiero w stresie — i wtedy
-jest to odmowa kredytu, nie strata puli.
+These numbers come from `npm run backtest` with the committed `data/params.fitted.json` (reproduce it with `npm run calibrate`, then `npm run backtest`). With unfitted defaults (`PARAMS_MODE=priors`) the tail row is **$5,336,023 vs $0**. The fixed-LTV book's liquidation proceeds are priced with the same execution model, so its bad debt also depends on the parameter set.
 
-## Uczciwe ograniczenia (mówimy je pierwsi)
+Reading: in a calm market ECV lends almost as much as fixed LTV; the cost of safety shows up under stress, as refused credit rather than pool losses.
 
-1. **Dane są syntetyczne.** `src/data/prices.mjs` generuje serię z weekendowymi
-   lukami. Przed pitchem podmień na realną historię w `data/prices.SPYx.json`
-   (format: `[{t: ms, p: number}]`).
-2. **Kalibrator kasuje nasz ulubiony parametr.** Na tej serii dopasowanie ustawia
-   `session.weekend = 1.0` i `volSlope = 0` — czyli dane nie uzasadniają haircutu
-   za weekend; ochronę daje głębokość, slippage i breaker. Nie ukrywamy tego:
-   dashboard pokazuje priors, a wynik kalibracji jest widoczny w panelu agentów.
-3. **Scenariusze stresu działają przez całe okno**, więc „kredyt vs fixed" w tych
-   wierszach to górne ograniczenie kosztu, nie realna średnia.
-4. **Mint adresy xStocks w `src/data/jupiter.mjs` trzeba zweryfikować** przed
-   demo na żywo. Offline fallback działa zawsze.
+## Known limitations
 
-## Następny krok po hackathonie
+1. **Backtest data is synthetic** (`src/data/prices.mjs`). A real series can be dropped in as `data/prices.SPYx.json` (`[{t: ms, p: number}]`).
+2. **The calibrator removes our favourite term.** On this series the fit sets `session.weekend = 1.0` and `volSlope = 0`: the data does not justify a weekend haircut; depth, slippage and the breaker do the work. We show this rather than hide it.
+3. **Stress scenarios apply for the whole window**, so "credit vs fixed" in those rows is an upper bound on cost, not a realistic average.
+4. **Risk Lab NAV is a proxy** (Kamino oracle price); no independent issuer NAV feed is configured. Average health factor is a user assumption, not measured account health.
+5. **On-chain trust model is a PoC**: one authority key can write any record; no multisig, no on-chain Jupiter verification. The only devnet record so far was posted under the TSLAx mint by mistake (PDA `54jQEa…wMRw`) with a synthetic route.
 
-Program Anchor konsumujący pięć wyjść (`max_borrow`, `collateral_cap`,
-`liquidation_route`, `risk_premium`, `borrow_disabled`). Kształt tej struktury
-jest zamrożony — patrz `tasks/`.
+## Repository map
+
+| Path | Purpose |
+|---|---|
+| `src/ecv/` | ECV model (pure functions) and parameters with bounds |
+| `src/risk/` | Kamino risk-lab model (four independent stress axes) |
+| `src/data/` | Adapters: Kamino, Jupiter, liquidity ladder, xStocks, session, volatility, prices — all with offline fallbacks |
+| `src/backtest/` | Synthetic backtest harness and scenarios |
+| `src/agents/` | Calibrator, adversary, monitor, swarm |
+| `src/api/` | Zero-dependency HTTP server + risk routes |
+| `web/` | Local UI: legacy demo (`index.html`) and Risk Lab (`risk.*`) |
+| `data/` | `kamino.snapshot.json` (recorded 27.09.2026 11:50 UTC), `params.fitted.json` |
+| `onchain/` | Anchor workspace: `ecv_oracle` program + Rust poster |
+| `scripts/export-static.mjs` | Builds the static snapshot Risk Lab into `docs/risk/` |
+| `docs/` | GitHub Pages root: landing (`index.html`), `risk/`, `deck/`, Kamino docs |
+
+## Team
+
+- Dorian Żaczek — CEO, Founder & Product Manager
+- Mieszko Manijak — CTO & DeFi Architect Engineer
+- Julita Szaruta — Legal, Tax & Regulatory Lead
+- Adam Książkiewicz — Rust / Anchor (investiatech)
+- Adam Kwak — Advisor
+
+Hackathons: Blockchain Hack Kraków and Blockchain Hack Warsaw (Superteam Poland, September 2026); Colosseum (October 2026).
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
