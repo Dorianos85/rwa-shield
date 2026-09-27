@@ -2,6 +2,7 @@
 
 **Landing:** https://dorianos85.github.io/rwa-shield/
 **Live demo path:** `DEMO_RUNBOOK.md`
+**Docs (EN):** [Whitepaper](docs/WHITEPAPER.md) · [Roadmap](docs/ROADMAP.md) · [Mind map](docs/MINDMAP.md)
 
 Warstwa ryzyka dla lendingu pod tokenizowane akcje na Solanie. Zamiast stałego LTV
 liczy **ECV** — kwotę USDC, jaką likwidacja pozycji realnie zwróci w obecnych
@@ -86,3 +87,67 @@ jest to odmowa kredytu, nie strata puli.
 Program Anchor konsumujący pięć wyjść (`max_borrow`, `collateral_cap`,
 `liquidation_route`, `risk_premium`, `borrow_disabled`). Kształt tej struktury
 jest zamrożony — patrz `tasks/`.
+
+## Project map
+
+One-page map of the project (same diagram as [docs/MINDMAP.md](docs/MINDMAP.md)). Backtest figures are synthetic and in-sample; the on-chain program runs on Solana devnet.
+
+```mermaid
+mindmap
+  root((RWA Shield))
+    Problem
+      Oracle price is not cash
+      Thin books and closed NYSE sessions
+      Fixed LTV ignores recoverable value
+    ECV engine
+      Price blend of spot and TWAP
+      Depth and slippage for position size
+      NYSE session factor
+      Volatility haircut
+      Breaker gates new credit only
+      Five frozen outputs
+        max_borrow
+        collateral_cap
+        liquidation_route
+        risk_premium
+        borrow_disabled
+    Evidence
+      Synthetic in-sample backtest
+        Six stress scenarios
+        Tail scenario 3.98M USD vs 0 USD bad debt
+        369 refusals in tail scenario
+      Yahoo SPY proxy series in PR 1
+      Legacy breaker demo
+    Kamino risk dashboard PR 3
+      Recorded Kamino snapshot
+      Jupiter quote ladder
+      Stress sandbox
+      Four stress axes
+    Onchain devnet
+      Anchor program ecv_oracle
+      Publishes outputs, does not enforce
+      Rust poster with every-sec mode
+      Last record posted 26.09.2026
+      SPYx mint fix in PR 4
+    Hackathons
+      Blockchain Hack Kraków 20.09.2026
+      Stocklana by 25.09.2026
+      Warsaw pitch 27.09.2026
+      Colosseum deadline 12.10.2026
+    Monetization hypothesis
+      Risk API and SDK
+      Share of risk premium
+      Optional vault fees
+    Team
+      Dorian Żaczek, CEO, Founder and Product Manager
+      Mieszko Manijak, CTO and DeFi Architect Engineer
+      Julita Szaruta, Legal, Tax and Regulatory Lead
+      Adam Książkiewicz, investiatech, Rust, devnet deploy, quant
+      Adam Kwak, Advisor
+    Roadmap
+      Colosseum submission
+      Vault and borrow gate
+      Verifiable inputs and multi-signer
+      Walk-forward backtest
+      Mainnet only after external audit
+```
