@@ -12,6 +12,7 @@ import { generateSeries, loadSeries } from '../data/prices.mjs';
 import { realizedVolAnnual } from '../data/volatility.mjs';
 import { runBacktest } from '../backtest/engine.mjs';
 import { SCENARIOS } from '../backtest/scenarios.mjs';
+import { handleRiskRequest } from './riskRoutes.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const ROOT = new URL('../../', import.meta.url);
@@ -40,6 +41,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   try {
     const selected = selectParams(url);
+    if (await handleRiskRequest(req, res, url, selected.params)) return;
     if (url.pathname === '/api/state') return json(res, {
       session: sessionState(), hoursToReopen: hoursToReopen(),
       paramsSource: selected.source, paramsMode: selected.mode,
@@ -129,7 +131,15 @@ const server = createServer(async (req, res) => {
       return json(res, out);
     }
 
-    const file = url.pathname === '/' ? 'web/index.html' : url.pathname.replace(/^\//, '');
+    const file = url.pathname === '/' ? 'web/index.html'
+      : ['/risk', '/risk/'].includes(url.pathname) ? 'web/risk.html'
+      : url.pathname.replace(/^\//, '');
+    // Serve only public UI and the pure browser model. Never expose repository
+    // metadata, local configuration, source adapters, or arbitrary disk paths.
+    const publicFile = /^web\/[a-zA-Z0-9_-]+\.(html|js|css)$/.test(file)
+      || ['web/assets/rwa-shield-logo.jpg', 'web/assets/rwa-shield-banner.jpg'].includes(file)
+      || ['src/risk/kaminoRisk.mjs', 'src/ecv/model.mjs', 'src/ecv/params.mjs'].includes(file);
+    if (!publicFile) return notFound(res);
     const body = await readFile(new URL(file, ROOT));
     res.writeHead(200, { 'content-type': mime(file) });
     return res.end(body);
@@ -140,7 +150,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`RWA Shield demo:  http://localhost:${PORT}`);
+  console.log(`RWA Shield demo:  http://localhost:${server.address().port}`);
   console.log(`parametry: ${selectParams().source} | seria: ${SERIES.length}h | vol ${(VOL * 100).toFixed(1)}%`);
 });
 
@@ -190,5 +200,10 @@ function json(res, obj) {
   res.end(JSON.stringify(obj));
 }
 function mime(f) {
-  return { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' }[extname(f)] || 'text/plain';
+  return { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg' }[extname(f)] || 'text/plain';
+}
+
+function notFound(res) {
+  res.writeHead(404, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ error: 'not_found' }));
 }

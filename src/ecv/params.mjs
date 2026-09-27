@@ -32,7 +32,20 @@ export const DEFAULT_PARAMS = {
   liquidationBonusPct: 5,       // paid to liquidator, reduces recovery
   riskPremiumBase: 0.02,        // 2% base spread
   riskPremiumSlope: 0.35,       // spread added per unit of risk
-  targetHealth: 1.15            // health factor at which borrowing is capped
+  targetHealth: 1.15,           // health factor at which borrowing is capped
+
+  // Explicit RWA lab policies and scenario domains, never observed Kamino parameters.
+  riskLab: {
+    maxExecutionAgeSec: 60, // RWA quote validity policy; same horizon as adapter cache
+    maxReserveAgeSec: 60, // RWA reserve observation validity policy, not a protocol limit
+    syntheticDepthUsd: 400_000, // inherited offline demo assumption, never measured depth
+    defaultNotionalUsd: 100_000,
+    defaultAverageHealthFactor: 1.5,
+    maxUtilization: 0.999,
+    navRangeMultiplier: 1.5,
+    liquidityRangeMultiplier: 2,
+    maxAverageHealthFactor: 3
+  }
 };
 
 export const PARAM_BOUNDS = {
@@ -42,6 +55,19 @@ export const PARAM_BOUNDS = {
   'session.afterHours': [0.75, 1.00, 0.02],
   volSlope:          [0.0, 2.0, 0.1],
   safetyFactor:      [0.60, 0.95, 0.05]
+};
+
+// Lab policies/domains are outside the legacy backtest calibration targets.
+export const RISK_LAB_BOUNDS = {
+  'riskLab.maxExecutionAgeSec': [1, 300, 1],
+  'riskLab.maxReserveAgeSec': [1, 300, 1],
+  'riskLab.syntheticDepthUsd': [1, 10_000_000, 25_000],
+  'riskLab.defaultNotionalUsd': [1, 10_000_000, 25_000],
+  'riskLab.defaultAverageHealthFactor': [1, 3, 0.05],
+  'riskLab.maxUtilization': [0.95, 0.999, 0.001],
+  'riskLab.navRangeMultiplier': [1, 3, 0.1],
+  'riskLab.liquidityRangeMultiplier': [1, 5, 0.1],
+  'riskLab.maxAverageHealthFactor': [2, 5, 0.1]
 };
 
 export function clone(p) { return JSON.parse(JSON.stringify(p)); }
