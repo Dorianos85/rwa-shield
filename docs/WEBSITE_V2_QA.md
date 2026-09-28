@@ -43,3 +43,13 @@ Nie przeprowadzono testów na fizycznych telefonach ani osobno w Safari/Firefox.
 - Kontrolki działają po odłączeniu sieci. Przeglądarka nie wykonuje żadnych żądań `/api/`.
 - Poprawiono przepełnienie odziedziczonego układu dashboardu przy 1024 px. Brak overflow w przedziale 320–1920 px.
 - Live probe i Fitted są wyłączone z odpowiednim kontekstem; strona nie udaje połączenia z Jupiterem ani posiadania kalibracji.
+
+## Kontrola interaktywnego wykresu 3D
+
+- Obrót drag i klawiaturą, zoom, reset widoku oraz inspekcja punktów sprawdzone w przeglądarce.
+- Kliknięcie punktu ustawia suwaki i przelicza dashboard; weekend stress odświeża powierzchnię/odczyt i zamyka gate.
+- Tabela dokładnych wartości przekroju działa, obliczenia i widok działają bez sieci po załadowaniu.
+- Kontrola wizualna desktop/mobile, brak overflow przy 320, 390, 768, 1024 i 1440 px.
+- Klawiatura wykresu nie przełącza kroków prezentacji. Brak błędów JavaScript.
+- Ponownie: 7/7 testów modelu, backtest bez wyjątku, /api/ecv HTTP 200.
+- Dodatkowo sprawdzono dwupunktowy pinch zoom na emulowanym ekranie dotykowym oraz tabelę awaryjną przy niedostępnym kontekście Canvas.
