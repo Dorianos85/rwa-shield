@@ -25,7 +25,7 @@ Okładka mówi „10.2026”; strona zachowuje rzeczywiste wrześniowe daty pomi
 | NVDAx 1.02/1.09/1.36M, 1.12/1.19/1.53M | Wykres `image-6-1.png`, slajd 6 | Pojemność zyskowna / cała księga, 24–26.09.2026; (1.36/1.02−1)=33.33% |
 | −$22k/−$8k/+$34k | Slajd 6 | Ten sam szok −25%, pozycje przy 55% LTV; 5% bonus |
 | Pięć wyjść ECV + diagnostyczny breaker_reason | `src/ecv/model.mjs`, `onchain/.../state.rs` | Model daje również executableValue i ecv; breaker nie zeruje marku istniejącej pozycji |
-| Demo interaktywne SPYx | `scripts/build-website-demo.mjs` → `docs/demo-data.js` | Syntetyczne wejścia, wynik rzeczywistego modelu, DEFAULT_PARAMS; trzy skończone scenariusze, brak live API |
+| Dashboard z repo jako demo | `web/index.html` → `scripts/build-website-demo.mjs` → `docs/demo/` | Oryginalny interfejs, statyczny adapter API, model i parametry kopiowane bez zmian; obliczenia w przeglądarce, DEFAULT_PARAMS; brak live API |
 | Nagranie TSLAx $100k, $84,358, $58,684, $55,000, 90% | Slajd 8 | Oddzielne zwijane objaśnienie. Snapshot + sandbox; nie utożsamiany z publicznym demo SPYx |
 | $5,336,023.085 fixed / $0 ECV / 369 odmów | Bieżący `src/backtest/run.mjs`, DEFAULT_PARAMS | Wynik odtworzony 28.09.2026, syntetyczny, in-sample. Na stronie zaokrąglony do $5.34M |
 | ~80% kredytu bazowego | Bieżący engine | `lentLessPct=20.23%`, czyli 79.77% bazowej podaży kredytu; rounded ratio=0.8 |
@@ -49,7 +49,7 @@ Weryfikacja pozycji obiektów i relacji w `ppt/slides/slide14.xml`:
 1. **Backtest pitch vs kod.** Slajd 9 mówi ~$3.98M złego długu fixed, ~100% kredytu bazowego i ~27% średniej dla sześciu scenariuszy. Czysty publiczny checkout daje ~$5.34M i ~80% bazy. Dokładny artefakt kalibracji pitchu nie jest w repo. Nie zmieniano modelu, aby dopasować marketing. Strona pokazuje odtwarzalny wynik oraz jawne porównanie z pitchem.
 2. **Ograniczenia silnika.** `LIQ_LAG_HOURS` i `maturityHours` są zadeklarowane, lecz pętla nie stosuje odroczonej egzekucji ani zapadalności. Nie powielono twierdzenia README, że te mechanizmy są symulowane. Wyniki pozostają ilustracją syntetyczną, nie walidacją historyczną.
 3. **Brak surowych pomiarów Kamino/Jupiter w publicznym checkout.** Wartości dopasowano do tekstu i oryginalnych wykresów PPTX. Nie można odtworzyć pomiarów z samych plików w repo. Na stronie są daty, źródło pitch i informacja o braku raw quote ladders. Dla niezależnej replikacji potrzebny jest eksport kwotowań i odczytów obligations.
-4. **Osobny sandbox TSLAx.** Slajd 8 opisuje rezerwę USDC i kink 90%. Publiczny model nie implementuje tego ostrzeżenia. Zapis pitchu oddzielono od interaktywnego demo kanonicznego modelu; nie dodano wymyślonego algorytmu.
+4. **Osobny sandbox TSLAx.** Slajd 8 opisuje rezerwę USDC i kink 90%. Publiczny model nie implementuje tego ostrzeżenia. Zapis pitchu oddzielono od dashboardu z publicznego repo; nie dodano wymyślonego algorytmu.
 5. **Devnet freshness.** Adresy i zakres funkcjonalny zweryfikowano z kodem/repo. Odczyt RPC `getMultipleAccounts`, commitment confirmed, slot 504960309: program jest executable; Config 45 B i EcvRecord 109 B mają właściwego ownera. Zdekodowany rekord: posted_at 1790445312 = 26.09.2026 17:55:12 UTC / 19:55:12 Warszawa; posted_slot 504492381; route `offline:synthetic-curve`; TTL konfiguracji 30 s. Rekord jest stary i syntetyczny. Potwierdza publikację, nie aktualne dane rynku ani ciągłą pracę postera. Surowy publiczny odczyt: `devnet-proof.json`.
 6. **Metryki rynkowe i incydenty.** Nie przeniesiono wszystkich kwot incydentów, danych konkurencji ani twierdzenia o braku konkurentów. Nie są potrzebne do narracji strony i wymagają osobnego audytu źródeł pierwotnych. Zamiast nich pokazano precyzyjny problem, własne pomiary i neutralne kategorie rynkowe. Gauntlet opisuje curation/risk management na https://www.gauntlet.xyz/; Chaos Labs podlinkowano jako kategorię wskazaną w pitchu, bez kwot.
 7. **Zdjęcie Adama Książkiewicza.** Pitch ma inicjały AK. Strona zachowuje je i nie generuje portretu. Zdjęcie doradcy przypisano Adamowi Kwakowi.
@@ -69,3 +69,11 @@ node src/api/server.mjs
 ## Weryfikacja strony
 
 Wyniki końcowej kontroli desktop/mobile i interakcji zapisano w `WEBSITE_V2_QA.md`.
+
+## Dashboard z repo na GitHub Pages
+
+Zgodnie z doprecyzowaniem użytkownika demo jest oryginalnym dashboardem `web/index.html`, udostępnionym w `docs/demo/` i osadzonym w sekcji Demo. Przycisk „Open full dashboard” otwiera pełny widok.
+
+Generator kopiuje model, parametry i zegar sesji oraz wyprowadza funkcję syntheticQuote, pomocniki API, ceny demonstracyjne, zmienność i wyniki backtestu z oryginalnego kodu. `static-api.mjs` zastępuje wyłącznie transport do lokalnego serwera obliczeniami w przeglądarce. Suwaki pozycji/głębokości, wybór aktywa/sesji, waterfall, wykres impactu, weekend stress i tryb prezentacji pochodzą z oryginalnego dashboardu.
+
+Przycisk live probe jest wyłączony z wyjaśnieniem; odsyłacz prowadzi do instrukcji uruchomienia serwera lokalnego. Fitted jest wyłączone, ponieważ brak artefaktu kalibracji. Monitor nie pracuje na statycznej stronie. Nowe logo, etykieta trybu i drobne poprawki mobile dotyczą tylko wygenerowanego wariantu strony; `web/` i `src/` są bez zmian.

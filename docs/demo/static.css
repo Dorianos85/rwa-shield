@@ -1,0 +1,37 @@
+/* Static hosting context and responsive repairs around the original repository UI. */
+:root { --green: #35d9dc; --faint: #9baab0; }
+.static-banner { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #35414a; background: #141923; color: #b9a5f3; font: 10px/1.7 ui-monospace, monospace; }
+.static-banner a, .static-noscript a { color: #35d9dc; }
+.static-noscript { padding: 25px; }
+a:focus-visible { outline: 2px solid #35d9dc; outline-offset: 4px; }
+.control-card button[disabled], .segmented button[disabled] { cursor: not-allowed; opacity: .6; }
+.brand img { display: block; }
+body.present .static-banner { display: none; }
+.wf-row .label { white-space: normal; }
+.table-card { max-width: 100%; }
+@media (max-width: 600px) {
+  .static-banner { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .static-banner span { order: 3; width: 100%; font-size: 9px; }
+  .wrap { padding-inline: 16px; }
+  header { flex-wrap: wrap; gap: 16px; padding-block: 16px; }
+  .header-actions { margin-left: 0; }
+  .card { padding: 12px; min-width: 0; }
+  .wf-row { grid-template-columns: minmax(0,1fr) 45px 85px; gap: 5px; padding-inline: 8px; }
+  .wf-row .label { font-size: 10px; }
+  .wf-row .op { font-size: 9px; }
+  .wf-row .number { font-size: 11px; }
+  .card-title { flex-wrap: wrap; }
+  .truth-note { flex-direction: column; }
+  .backtest-hero { gap: 10px; padding: 16px 10px; }
+  .result span { font-size: 8px; letter-spacing: .05em; }
+  .arrow { font-size: 20px; }
+  .result strong { font-size: 29px; }
+  .chart-caption { flex-wrap: wrap; font-size: 8px; }
+  body.present .metric-strip { grid-template-columns: repeat(2,1fr); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (min-width: 901px) and (max-width: 1180px) {
+  .visual-grid { grid-template-columns: minmax(0, 1fr); }
+  header { flex-wrap: wrap; padding-block: 14px; }
+  .runtime { max-width: 280px; }
+}
