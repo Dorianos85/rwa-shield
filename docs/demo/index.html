@@ -245,9 +245,15 @@
             <div class="decision" id="decision"></div>
           </div>
           <div class="card">
-            <div class="card-title"><h3>Position size → price impact</h3><span class="badge" id="curveBadge">depth probe</span></div>
-            <div class="chart-wrap"><svg id="depthChart" viewBox="0 0 640 250" role="img" aria-label="Depth curve showing price impact by position size"></svg></div>
-            <div class="chart-caption"><span>Smaller position</span><span id="cutoffCaption">Credit cutoff —</span><span>Larger position</span></div>
+            <div class="card-title"><h3>Liquidity surface / 3D</h3><span class="badge" id="curveBadge">depth probe</span></div>
+            <div class="chart-3d">
+  <div class="chart-tools"><span>SYNTHETIC MODEL SURFACE</span><div><button type="button" data-chart-zoom-out aria-label="Zoom out">−</button><button type="button" data-chart-zoom-in aria-label="Zoom in">+</button><button type="button" data-chart-reset>Reset view</button></div></div>
+  <canvas id="depthChart" tabindex="0" role="img" aria-label="Interactive 3D liquidity surface" aria-describedby="chartHelp"></canvas>
+  <p id="chartReadout" class="chart-readout"></p>
+  <p id="chartHelp" class="chart-help">Drag to orbit · pinch or focus + scroll to zoom · hover to inspect · click a point to apply. Keyboard: arrows rotate, +/− zoom, Home resets. Scroll outside the chart to move the page.</p>
+  <details class="chart-table"><summary>Exact values at current depth</summary><div><table><thead><tr><th>Position</th><th>Depth</th><th>Impact</th><th>Impact threshold</th></tr></thead><tbody id="chartData"></tbody></table></div></details>
+</div>
+            <div class="chart-caption"><span>Cyan: current depth slice</span><span id="cutoffCaption">Impact threshold</span><span>Gold: selected position</span></div>
           </div>
         </div>
 
@@ -297,6 +303,7 @@
 
 <script type="module">
   import { demoApi } from "./static-api.mjs";
+  import { createDepthChart } from "./depth-chart.mjs";
   const $ = id => document.getElementById(id);
   const query = new URLSearchParams(location.search);
   const allowedSymbols = new Set(['SPYx', 'QQQx', 'NVDAx']);
@@ -320,6 +327,10 @@
     earnings_gap:'Single-stock earnings gap −18%', vol_spike:'Volatility spike (earnings)'
   };
 
+  const depthChart3d = createDepthChart($('depthChart'), { onSelect: (notional, depth) => {
+    $('notional').value = notional; $('depth').value = depth;
+    updateControlLabels(); syncUrl(); refresh();
+  }});
   hydrateControlsFromUrl();
   setPresentation(app.presenting, false);
   setStep(app.step, app.presenting && !hasScenarioInUrl);
@@ -466,7 +477,8 @@
     $('curveBadge').textContent = result.quoteSource === 'jupiter' ? 'live depth probe' : 'offline depth probe';
     $('curveBadge').classList.toggle('fallback', result.quoteSource !== 'jupiter');
     $('runtime').innerHTML = `scenario <b>${prettySession(result.session)}</b> · <b>${result.paramsSource}</b> · ${source}`;
-    renderDepthChart(result.depthCurve || [], Number($('notional').value), result.limits.breakerImpactPct);
+    depthChart3d.update(result, Number($('notional').value), Number($('depth').value));
+    $('cutoffCaption').textContent = `Impact breaker > ${result.limits.breakerImpactPct}%`;
 
     const fitted = result.paramsMode === 'fitted';
     $('paramsCallout').classList.toggle('show', fitted);
@@ -475,38 +487,6 @@
       : '';
     updateStoryCopy(result);
     syncUrl();
-  }
-
-  function renderDepthChart(curve, currentNotional, cutoff) {
-    const svg = $('depthChart');
-    const points = curve.filter(point => Number.isFinite(point.notionalUsd) && Number.isFinite(point.impactPct) && point.notionalUsd > 0);
-    if (!points.length) { svg.innerHTML = '<text x="20" y="40" fill="#8ba0a5" font-size="13">No routable depth returned</text>'; return; }
-    const width = 640, height = 250, left = 48, right = 16, top = 18, bottom = 38;
-    const minX = Math.min(...points.map(point => point.notionalUsd));
-    const maxX = Math.max(...points.map(point => point.notionalUsd));
-    const maxVisibleImpact = Math.max(8, cutoff * 1.6);
-    const logMin = Math.log10(minX), logMax = Math.log10(maxX);
-    const x = value => left + ((Math.log10(value) - logMin) / Math.max(.001, logMax - logMin)) * (width - left - right);
-    const y = value => top + (1 - Math.min(value, maxVisibleImpact) / maxVisibleImpact) * (height - top - bottom);
-    const path = points.map((point,index) => `${index ? 'L' : 'M'} ${x(point.notionalUsd).toFixed(1)} ${y(point.impactPct).toFixed(1)}`).join(' ');
-    const current = points.reduce((best,point) => Math.abs(point.notionalUsd-currentNotional) < Math.abs(best.notionalUsd-currentNotional) ? point : best, points[0]);
-    const cutoffY = y(cutoff);
-    const ticksY = [0, cutoff, maxVisibleImpact].map(value =>
-      `<g><line x1="${left}" x2="${width-right}" y1="${y(value)}" y2="${y(value)}" stroke="${value === cutoff ? '#ff5566' : '#203036'}" stroke-dasharray="${value === cutoff ? '5 5' : '0'}"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end" fill="${value === cutoff ? '#ff7785' : '#5d7277'}" font-family="ui-monospace,monospace" font-size="10">${value.toFixed(value % 1 ? 1 : 0)}%</text></g>`
-    ).join('');
-    const xTickValues = [...new Set([minX, 100000, maxX].filter(value => value >= minX && value <= maxX))];
-    const ticksX = xTickValues.map(value => `<text x="${x(value)}" y="${height-12}" text-anchor="middle" fill="#5d7277" font-family="ui-monospace,monospace" font-size="10">${compactUsd(value)}</text>`).join('');
-    const area = `${path} L ${x(points.at(-1).notionalUsd)} ${height-bottom} L ${x(points[0].notionalUsd)} ${height-bottom} Z`;
-    svg.innerHTML = `
-      <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#29d9ff" stop-opacity=".24"/><stop offset="1" stop-color="#29d9ff" stop-opacity="0"/></linearGradient></defs>
-      ${ticksY}<path d="${area}" fill="url(#areaFill)"/><path d="${path}" fill="none" stroke="#29d9ff" stroke-width="2.5"/>
-      <line x1="${x(currentNotional)}" x2="${x(currentNotional)}" y1="${top}" y2="${height-bottom}" stroke="#ffb224" stroke-dasharray="3 4"/>
-      <circle cx="${x(current.notionalUsd)}" cy="${y(current.impactPct)}" r="5" fill="#05090b" stroke="#ffb224" stroke-width="2"/>
-      <rect x="${Math.min(width-104, Math.max(left, x(current.notionalUsd)-45))}" y="${Math.max(top, y(current.impactPct)-28)}" width="90" height="20" rx="3" fill="#1e1b13" stroke="#8f6a24"/>
-      <text x="${Math.min(width-59, Math.max(left+45, x(current.notionalUsd)))}" y="${Math.max(top+14, y(current.impactPct)-14)}" text-anchor="middle" fill="#ffcf72" font-family="ui-monospace,monospace" font-size="10">${compactUsd(currentNotional)} · ${current.impactPct.toFixed(2)}%</text>
-      <text x="${width-right}" y="${cutoffY-7}" text-anchor="end" fill="#ff7785" font-family="ui-monospace,monospace" font-size="10">BREAKER</text>${ticksX}`;
-    const crossing = points.find(point => point.impactPct > cutoff);
-    $('cutoffCaption').textContent = crossing ? `Credit cutoff ≈ ${compactUsd(crossing.notionalUsd)}` : `Credit cutoff above ${compactUsd(maxX)}`;
   }
 
   async function loadBacktest() {

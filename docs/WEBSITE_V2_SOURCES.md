@@ -77,3 +77,9 @@ Zgodnie z doprecyzowaniem użytkownika demo jest oryginalnym dashboardem `web/in
 Generator kopiuje model, parametry i zegar sesji oraz wyprowadza funkcję syntheticQuote, pomocniki API, ceny demonstracyjne, zmienność i wyniki backtestu z oryginalnego kodu. `static-api.mjs` zastępuje wyłącznie transport do lokalnego serwera obliczeniami w przeglądarce. Suwaki pozycji/głębokości, wybór aktywa/sesji, waterfall, wykres impactu, weekend stress i tryb prezentacji pochodzą z oryginalnego dashboardu.
 
 Przycisk live probe jest wyłączony z wyjaśnieniem; odsyłacz prowadzi do instrukcji uruchomienia serwera lokalnego. Fitted jest wyłączone, ponieważ brak artefaktu kalibracji. Monitor nie pracuje na statycznej stronie. Nowe logo, etykieta trybu i drobne poprawki mobile dotyczą tylko wygenerowanego wariantu strony; `web/` i `src/` są bez zmian.
+
+## Wykres 3D
+
+Dashboard ma interaktywną powierzchnię position size × routable depth × price impact. Punkty wylicza kanoniczna funkcja `syntheticQuote` wygenerowana z `src/data/jupiter.mjs`; to scenariusze syntetyczne, nie nowe pomiary rynku. Osie wielkości/głębokości są logarytmiczne; wysokość korzysta z log(1 + impact %), jawnie opisanej na wykresie. Wartości w odczycie i tabeli nie są obcinane. Próg impact breakera pochodzi z odpowiedzi modelu. Próg głębokości jest odrębnym warunkiem i nadal działa w modelu.
+
+Renderowanie: własna projekcja perspektywiczna Canvas, bez nowych zależności i bez ciągłej animacji. Obrót, zoom, dotyk, klawiatura, reset i odczyt punktu. Kliknięcie punktu zaokrągla pozycję/głębokość do kroków istniejących suwaków i przelicza cały dashboard. Dokładna tabela przekroju pozostaje dostępna również bez Canvas.

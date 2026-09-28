@@ -62,4 +62,24 @@ replace('fittedAvailable: true,', 'fittedAvailable: false,');
 replace('The fitted weekend modifier is 1.00; liquidity and the breaker do the work.', 'This static edition uses default model priors; the liquidity breaker blocks new borrowing.');
 replace('Polls price and depth, then alerts when a haircut moves by more than one percentage point.', 'Available in the repository. The monitor is not running on this static page.');
 replace('const response = await fetch(url);\n    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);\n    const payload = await response.json();\n    if (payload.error) throw new Error(payload.error);\n    return payload;', 'return demoApi(url);');
+replace('import { demoApi } from "./static-api.mjs";', 'import { demoApi } from "./static-api.mjs";\n  import { createDepthChart } from "./depth-chart.mjs";');
+replace('<h3>Position size → price impact</h3>', '<h3>Liquidity surface / 3D</h3>');
+replace('<div class="chart-wrap"><svg id="depthChart" viewBox="0 0 640 250" role="img" aria-label="Depth curve showing price impact by position size"></svg></div>', `<div class="chart-3d">
+  <div class="chart-tools"><span>SYNTHETIC MODEL SURFACE</span><div><button type="button" data-chart-zoom-out aria-label="Zoom out">−</button><button type="button" data-chart-zoom-in aria-label="Zoom in">+</button><button type="button" data-chart-reset>Reset view</button></div></div>
+  <canvas id="depthChart" tabindex="0" role="img" aria-label="Interactive 3D liquidity surface" aria-describedby="chartHelp"></canvas>
+  <p id="chartReadout" class="chart-readout"></p>
+  <p id="chartHelp" class="chart-help">Drag to orbit · pinch or focus + scroll to zoom · hover to inspect · click a point to apply. Keyboard: arrows rotate, +/− zoom, Home resets. Scroll outside the chart to move the page.</p>
+  <details class="chart-table"><summary>Exact values at current depth</summary><div><table><thead><tr><th>Position</th><th>Depth</th><th>Impact</th><th>Impact threshold</th></tr></thead><tbody id="chartData"></tbody></table></div></details>
+</div>`);
+replace('  hydrateControlsFromUrl();', `  const depthChart3d = createDepthChart($('depthChart'), { onSelect: (notional, depth) => {
+    $('notional').value = notional; $('depth').value = depth;
+    updateControlLabels(); syncUrl(); refresh();
+  }});
+  hydrateControlsFromUrl();`);
+replace("renderDepthChart(result.depthCurve || [], Number($('notional').value), result.limits.breakerImpactPct);", "depthChart3d.update(result, Number($('notional').value), Number($('depth').value));\n    $('cutoffCaption').textContent = `Impact breaker > ${result.limits.breakerImpactPct}%`;");
+replace('<span>Smaller position</span><span id="cutoffCaption">Credit cutoff —</span><span>Larger position</span>', '<span>Cyan: current depth slice</span><span id="cutoffCaption">Impact threshold</span><span>Gold: selected position</span>');
+const chartStart = html.indexOf('  function renderDepthChart(');
+const chartEnd = html.indexOf('  async function loadBacktest()', chartStart);
+if (chartStart < 0 || chartEnd < 0) throw new Error('Dashboard chart source changed');
+html = html.slice(0, chartStart) + html.slice(chartEnd);
 await writeFile(new URL('index.html', dashboard), '<!-- Generated from web/index.html by scripts/build-website-demo.mjs. -->\n' + html);
