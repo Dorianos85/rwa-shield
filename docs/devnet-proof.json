@@ -1,0 +1,63 @@
+{
+  "verification_date": "2026-09-28",
+  "cluster": "devnet",
+  "method": "getMultipleAccounts",
+  "commitment": "confirmed",
+  "addresses": [
+    "5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc",
+    "Dty68hZxpsTbGySXyNa9uPXCqCoTKwYHMQ4ZANPQskZK",
+    "54jQEaQugDtKdXhX6XoBVtb3vYfD4tWGjpsmb6W4wMRw"
+  ],
+  "decoded_record": {
+    "posted_at_utc": "2026-09-26T17:55:12Z",
+    "posted_slot": 504492381,
+    "liquidation_route": "offline:synthetic-curve",
+    "config_max_staleness_sec": 30,
+    "note": "Historical synthetic record. Publication proof only; not a live risk feed."
+  },
+  "response": {
+    "jsonrpc": "2.0",
+    "result": {
+      "context": {
+        "apiVersion": "4.3.0",
+        "slot": 504960309
+      },
+      "value": [
+        {
+          "data": [
+            "AgAAAEPciNsnQeZPNP06GYTA7w5mPxAWAIzAvoB8kKFjRkFf",
+            "base64"
+          ],
+          "executable": true,
+          "lamports": 833120,
+          "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+          "rentEpoch": 18446744073709551615,
+          "space": 36
+        },
+        {
+          "data": [
+            "mwyq4B76zIJdqfRhJcM5hRvxEgYC4fGdtGqIFWQc7HJhPqtYDyRUNB4AAAD/",
+            "base64"
+          ],
+          "executable": false,
+          "lamports": 878840,
+          "owner": "5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc",
+          "rentEpoch": 18446744073709551615,
+          "space": 45
+        },
+        {
+          "data": [
+            "kD33huFiLWEH6DWCQR/qFILwmUuAqlEql8lPJd8oO+xaZ6OB/IYrSjAipwAQAAAAABTRAkUAAADyAAAAb2ZmbGluZTpzeW50aGV0aWMtY3VydmUAAAAAAAAAAAAAB7hqAAAAAF3xER4AAAAA+w==",
+            "base64"
+          ],
+          "executable": false,
+          "lamports": 1203960,
+          "owner": "5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc",
+          "rentEpoch": 18446744073709551615,
+          "space": 109
+        }
+      ]
+    },
+    "id": 1
+  }
+}

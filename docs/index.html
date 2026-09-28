@@ -1,744 +1,167 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="RWA Shield — Executable Collateral Value for tokenized equities on Solana. How much USDC you really recover if you liquidate now.">
-<title>RWA Shield — Executable Collateral Value</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ink: #060A0C;
-    --panel: #0D1417;
-    --panel2: #111A1E;
-    --line: #1C2A2F;
-    --hi: #2A3E45;
-    --txt: #DCE8E8;
-    --dim: #7C9195;
-    --faint: #55686C;
-    --green: #00FF88;
-    --cyan: #00D4FF;
-    --amber: #FFB020;
-    --red: #FF4D5E;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    --sans: "IBM Plex Sans", system-ui, sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-  }
-
-  body {
-    background: var(--ink);
-    color: var(--txt);
-    font-family: var(--sans);
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  a { color: var(--green); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-
-  .nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 16px 28px;
-    background: rgba(6, 10, 12, 0.82);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.3s;
-  }
-  .nav.scrolled { border-bottom-color: var(--line); }
-  .nav-logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.12em;
-    color: var(--green);
-    font-weight: 500;
-  }
-  .nav-links {
-    margin-left: auto;
-    display: flex;
-    gap: 22px;
-    list-style: none;
-  }
-  .nav-links a {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
-    text-decoration: none;
-  }
-  .nav-links a:hover { color: var(--txt); }
-  .nav-cta {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink) !important;
-    background: var(--green);
-    padding: 8px 14px;
-    border: none;
-    text-decoration: none !important;
-  }
-  .nav-cta:hover { opacity: 0.9; text-decoration: none !important; }
-
-  .hero {
-    position: relative;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    padding: 100px 28px 80px;
-  }
-  #canvas-wrap {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.55;
-  }
-  #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
-  .hero-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 720px;
-    margin: 0 auto 0 8vw;
-  }
-  .eyebrow {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-bottom: 22px;
-  }
-  .eyebrow span { color: var(--green); }
-  h1 {
-    font-family: var(--mono);
-    font-size: clamp(36px, 6vw, 56px);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    line-height: 1.15;
-    color: var(--txt);
-    margin-bottom: 8px;
-  }
-  h1 .accent { color: var(--green); }
-  .pl-sub {
-    font-size: 14px;
-    color: var(--dim);
-    margin-bottom: 28px;
-    font-weight: 400;
-  }
-  .value-prop {
-    font-size: clamp(18px, 2.4vw, 22px);
-    color: var(--txt);
-    font-weight: 400;
-    max-width: 34em;
-    margin-bottom: 36px;
-    line-height: 1.45;
-  }
-  .value-prop strong { color: var(--green); font-weight: 500; }
-  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
-  .btn {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 14px 22px;
-    border: 1px solid var(--hi);
-    background: var(--panel2);
-    color: var(--txt);
-    cursor: pointer;
-    text-decoration: none !important;
-    transition: border-color 0.2s, color 0.2s, background 0.2s;
-  }
-  .btn:hover { border-color: var(--green); color: var(--green); }
-  .btn-primary {
-    background: var(--green);
-    border-color: var(--green);
-    color: var(--ink) !important;
-  }
-  .btn-primary:hover { background: #33ff9e; border-color: #33ff9e; color: var(--ink) !important; }
-
-  section {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 88px 28px;
-  }
-  .section-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--green);
-    margin-bottom: 14px;
-  }
-  .section-label::before { content: "› "; }
-  h2 {
-    font-family: var(--sans);
-    font-size: clamp(26px, 3.5vw, 34px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
-    margin-bottom: 20px;
-    max-width: 18em;
-  }
-  .lead {
-    font-size: 17px;
-    color: var(--dim);
-    max-width: 38em;
-    margin-bottom: 40px;
-  }
-
-  .problem-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-  @media (max-width: 720px) {
-    .problem-grid { grid-template-columns: 1fr; }
-    .hero-inner { margin-left: 0; }
-    .nav-links { display: none; }
-  }
-  .card {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 28px 26px;
-  }
-  .card h3 {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    color: var(--txt);
-  }
-  .card.bad h3 { color: var(--amber); }
-  .card.good h3 { color: var(--green); }
-  .card p { color: var(--dim); font-size: 15px; }
-
-  .formula {
-    border: 1px solid var(--line);
-    background: var(--panel2);
-    padding: 28px 26px;
-    margin-bottom: 28px;
-    font-family: var(--mono);
-    font-size: clamp(13px, 2vw, 15px);
-    letter-spacing: 0.02em;
-    color: var(--cyan);
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  .formula .op { color: var(--faint); }
-  .terms {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  .term {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 18px 16px;
-  }
-  .term .sym {
-    font-family: var(--mono);
-    font-size: 18px;
-    color: var(--green);
-    margin-bottom: 6px;
-  }
-  .term .name {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-bottom: 8px;
-  }
-  .term p { font-size: 13px; color: var(--dim); line-height: 1.45; }
-
-  .proof-box {
-    border: 1px solid var(--line);
-    background: linear-gradient(160deg, var(--panel) 0%, #0a1215 100%);
-    padding: 36px 32px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    align-items: center;
-  }
-  @media (max-width: 720px) {
-    .proof-box { grid-template-columns: 1fr; }
-  }
-  .proof-stat {
-    text-align: center;
-    padding: 20px;
-  }
-  .proof-stat .num {
-    font-family: var(--mono);
-    font-size: clamp(28px, 5vw, 40px);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-    margin-bottom: 8px;
-  }
-  .proof-stat.bad .num { color: var(--amber); }
-  .proof-stat.good .num { color: var(--green); }
-  .proof-stat .lbl {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-  .proof-copy h3 {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
-    margin-bottom: 12px;
-  }
-  .proof-copy p { color: var(--dim); font-size: 15px; margin-bottom: 12px; }
-  .proof-copy p:last-child { margin-bottom: 0; }
-  .vs {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--faint);
-    text-align: center;
-    letter-spacing: 0.14em;
-  }
-
-  .stack-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-  }
-  .stack-item {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    padding: 20px 18px;
-  }
-  .stack-item .tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--green);
-    margin-bottom: 8px;
-  }
-  .stack-item h3 {
-    font-size: 15px;
-    font-weight: 500;
-    margin-bottom: 6px;
-  }
-  .stack-item p { font-size: 13px; color: var(--dim); }
-
-  .cta-block {
-    text-align: center;
-    padding: 100px 28px 80px;
-    border-top: 1px solid var(--line);
-    max-width: none;
-  }
-  .cta-block h2 { margin-left: auto; margin-right: auto; }
-  .cta-block .lead { margin-left: auto; margin-right: auto; }
-  .cta-actions {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 8px;
-  }
-
-  footer {
-    border-top: 1px solid var(--line);
-    padding: 28px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 28px;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 980px;
-    margin: 0 auto;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--faint);
-  }
-  footer .tags { display: flex; flex-wrap: wrap; gap: 10px; }
-  footer .tag-pill {
-    border: 1px solid var(--line);
-    padding: 4px 10px;
-    color: var(--dim);
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--line);
-    max-width: 980px;
-    margin: 0 auto;
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="RWA Shield estimates recoverable USDC from tokenized equity collateral. Explore measured liquidity, the ECV engine and Solana devnet proof.">
+  <meta property="og:title" content="RWA Shield — Price recoverable collateral">
+  <meta property="og:description" content="Risk infrastructure for tokenized equities on Solana. Measured liquidity. Executable Collateral Value. Verifiable devnet records.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dorianos85.github.io/rwa-shield/">
+  <meta name="twitter:card" content="summary">
+  <title>RWA Shield — Price recoverable collateral</title>
+  <link rel="canonical" href="https://dorianos85.github.io/rwa-shield/">
+  <link rel="icon" type="image/png" href="assets/rwa-shield-logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
 </head>
 <body>
-
-<nav class="nav" id="nav">
-  <a class="nav-logo" href="https://github.com/Dorianos85/rwa-shield">RWA SHIELD</a>
-  <ul class="nav-links">
-    <li><a href="#problem">Problem</a></li>
-    <li><a href="#product">Product</a></li>
-    <li><a href="#proof">Proof</a></li>
-    <li><a href="#stack">Stack</a></li>
-  </ul>
-  <a class="nav-cta" href="#cta">GitHub</a>
-</nav>
-
-<header class="hero">
-  <div id="canvas-wrap" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <p class="eyebrow"><span>Solana</span> · RWA · Colosseum / Blockchain Hack Krakow</p>
-    <h1>RWA <span class="accent">SHIELD</span></h1>
-    <p class="pl-sub">Warstwa ryzyka i płynności dla tokenizowanych akcji na Solanie</p>
-    <p class="value-prop">
-      <strong>Executable Collateral Value</strong> — how much USDC you really recover
-      if you liquidate tokenized equity collateral <em>now</em>. Not another Aave.
-    </p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href="#product">See ECV</a>
-      <a class="btn" href="#cta">View on GitHub</a>
-    </div>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="nav-wrap">
+    <a class="brand" href="#main" aria-label="RWA Shield home"><img src="assets/rwa-shield-logo.png" alt="" width="42" height="42"><span>RWA <b>SHIELD</b></span></a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navigation" hidden>Menu <span aria-hidden="true">＋</span></button>
+    <nav id="navigation" aria-label="Main navigation">
+      <a href="#evidence">Evidence</a><a href="#ecv">ECV</a><a href="demo/?session=regular&amp;params=priors">Dashboard / Demo</a><a href="#devnet">Devnet</a><a href="#market">Market</a><a href="#team">Team</a>
+      <a class="nav-repo" href="https://github.com/Dorianos85/rwa-shield">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
   </div>
 </header>
+<main id="main">
+  <section class="hero container" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="signal" aria-hidden="true"></span> Risk infrastructure / Solana</p>
+      <h1 id="hero-title">Oracle price<br>is not cash.</h1>
+      <p class="hero-line">We price <span>recoverable collateral.</span></p>
+      <p class="intro">Executable Collateral Value estimates the USDC recoverable from tokenized equities under liquidation conditions. Built for lending venues, vaults and curators.</p>
+      <div class="actions"><a class="button primary" href="#ecv">Explore ECV <span aria-hidden="true">↗</span></a><a class="button" href="#devnet">View devnet proof <span aria-hidden="true">↓</span></a><a class="text-link" href="demo/?session=regular&amp;params=priors">Dashboard / Demo ↗</a></div>
+      <p class="hero-note">Open-source engine <span>·</span> Published on Solana devnet</p>
+    </div>
+    <figure class="hero-visual">
+      <img src="assets/hero-shield.jpg" width="1920" height="1080" alt="RWA Shield cyan and purple hexagonal brand emblem" fetchpriority="high">
+      <div class="visual-top mono"><span>RWA SHIELD / ECV</span><span>01</span></div>
+      <figcaption><span class="eyebrow">From a price to a risk decision</span><div>Oracle mark <span aria-hidden="true">→</span> Exit liquidity <span aria-hidden="true">→</span> <strong>ECV</strong></div></figcaption>
+    </figure>
+  </section>
+  <div class="evidence-key container" aria-label="Evidence labels"><span class="mono">READ THE EVIDENCE</span><span><i class="dot cyan"></i> Snapshot <small>Dated measurements</small></span><span><i class="dot purple"></i> Synthetic <small>Model scenarios</small></span><span><i class="dot cyan"></i> Devnet <small>Test network</small></span><span><i class="dot gray"></i> Hypothesis <small>Proposed business</small></span></div>
 
-<div class="divider"></div>
+  <section id="problem" class="section container" aria-labelledby="problem-title">
+    <div class="section-label"><span>01 / THE PROBLEM</span><span>MARK ≠ EXIT</span></div>
+    <div class="split intro-split"><h2 id="problem-title">A price tells you what it's worth.<br><span class="muted">Liquidity tells you what you get.</span></h2><div><p class="lead">A fixed loan-to-value ratio assumes the collateral can be sold near its mark. The buyer may not be there.</p><p>For tokenized equities, liquidation size, DEX depth, slippage and market-hours mismatch can change the outcome. Lending limits need to account for the executable exit.</p></div></div>
+    <div class="problem-grid"><article><span class="index">01</span><h3>Size changes the price</h3><p>A quote for a small trade cannot value an entire collateral position.</p></article><article><span class="index">02</span><h3>Depth changes over time</h3><p>The same position can have a different exit while lending parameters stay fixed.</p></article><article><span class="index">03</span><h3>Recovery sets the limit</h3><p>Origination needs a buffer. An existing position needs an executable mark.</p></article></div>
+  </section>
 
-<section id="problem">
-  <p class="section-label">Problem</p>
-  <h2>Oracle price is not cash in the pool.</h2>
-  <p class="lead">
-    Fixed-LTV lending on tokenized equities assumes you can exit at the mark.
-    On Solana, after hours and on weekends, the book is thin, the base market is closed,
-    and a liquidation that looks solvent on paper becomes bad debt in the pool.
-  </p>
-  <div class="problem-grid">
-    <div class="card bad">
-      <h3>Fixed LTV</h3>
-      <p>
-        Marks collateral at oracle × constant haircut. Ignores depth, session state,
-        and realized volatility. Weekend gaps turn “healthy” books into ~$4M losses
-        in our stress scenarios.
-      </p>
-    </div>
-    <div class="card good">
-      <h3>Executable value</h3>
-      <p>
-        Asks what USDC the route actually returns under current liquidity and calendar.
-        Refuses new credit when recovery would fail — without zeroing existing collateral marks.
-      </p>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<section id="product">
-  <p class="section-label">Product</p>
-  <h2>ECV: collateral valued as recoverable USDC.</h2>
-  <p class="lead">
-    Six terms. Pure functions. Same model for live pricing, backtests, and the agent swarm.
-    The breaker gates new borrows — it never cascade-liquidates an open book.
-  </p>
-  <div class="formula" aria-label="ECV formula">
-    ECV <span class="op">=</span> P<sub>oracle</sub>
-    <span class="op">×</span> D(q)
-    <span class="op">×</span> S(q)
-    <span class="op">×</span> M(t)
-    <span class="op">×</span> V(σ)
-    &nbsp;&nbsp;<span class="op">·</span>&nbsp;&nbsp; B = breaker
-  </div>
-  <div class="terms">
-    <div class="term">
-      <div class="sym">P</div>
-      <div class="name">Oracle</div>
-      <p>Mark from the price feed — the starting point, not the answer.</p>
-    </div>
-    <div class="term">
-      <div class="sym">D</div>
-      <div class="name">Depth</div>
-      <p>How much of the book can absorb this size without collapsing.</p>
-    </div>
-    <div class="term">
-      <div class="sym">S</div>
-      <div class="name">Slippage</div>
-      <p>Route impact on Jupiter (or offline fallback) for this notional.</p>
-    </div>
-    <div class="term">
-      <div class="sym">M</div>
-      <div class="name">Session</div>
-      <p>NYSE open / after-hours / weekend / holiday — when the hedge exists.</p>
-    </div>
-    <div class="term">
-      <div class="sym">V</div>
-      <div class="name">Volatility</div>
-      <p>Haircut from realized vol so stress is priced before it hits.</p>
-    </div>
-    <div class="term">
-      <div class="sym">B</div>
-      <div class="name">Breaker</div>
-      <p>Stops new credit when feeds fail. Leaves open positions marked.</p>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<section id="proof">
-  <p class="section-label">Proof</p>
-  <h2>Same book. Two models. One weekend.</h2>
-  <p class="lead">
-    110 days of hourly synthetic SPYx-style data. Positions every 7h, 96h maturity,
-    session-aware liquidation delay. Highlight: weekend gap −22% + thin book.
-  </p>
-  <div class="proof-box">
-    <div>
-      <div class="proof-stat bad">
-        <div class="num">~$4.0M</div>
-        <div class="lbl">Bad debt · fixed 70% LTV</div>
+  <section id="evidence" class="section section-tinted" aria-labelledby="evidence-title"><div class="container">
+    <div class="section-label"><span>02 / MEASURED EVIDENCE</span><span class="tag">SNAPSHOT · 26 SEP 2026</span></div>
+    <div class="section-heading"><h2 id="evidence-title">The rules allow more<br>than the exit can repay.</h2><p>Kamino API + Jupiter quotes.<br>Nine xStocks. One dated view of liquidity.</p></div>
+    <div class="comparison"><div><p class="metric-label">Allowed debt at full deposit caps</p><strong class="mega">$34.8<span>M</span></strong><div class="value-line full"></div></div><div><p class="metric-label">Estimated on-chain exit proceeds</p><strong class="mega accent">$7.8<span>M</span></strong><div class="value-line exit"></div></div><div class="ratio"><strong>≈4.5×</strong><p>allowed debt /<br>estimated exit proceeds</p></div></div>
+    <p class="source-note">Pitch-reported snapshot, not live data or realized sale proceeds. Full-cap scenario; this is not the current outstanding debt. <a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Source: Warsaw pitch, slide 4 ↗</a></p>
+    <div class="chart-panel">
+      <div class="chart-heading"><div><h3>Where the exit book covers allowed debt</h3><p>Asset-level ratios use <strong>today's deposits</strong>, not full deposit caps.</p></div><span class="mono">100% = FULL REPAYMENT</span></div>
+      <div class="coverage-chart" role="img" aria-label="Exit book divided by debt allowed on current deposits: GOOGLx 18%, QQQx 43%, SPYx 47%, TSLAx 48%, MSTRx 49%, NVDAx 104%, AAPLx 145%, CRCLx 291%, HOODx at least 310%. Five of nine are below 100%.">
+        <div class="chart-row"><span>GOOGLx</span><div class="track"><i class="low" style="--value:18"></i></div><b>18%</b></div>
+        <div class="chart-row"><span>QQQx</span><div class="track"><i class="low" style="--value:43"></i></div><b>43%</b></div>
+        <div class="chart-row"><span>SPYx</span><div class="track"><i class="low" style="--value:47"></i></div><b>47%</b></div>
+        <div class="chart-row"><span>TSLAx</span><div class="track"><i class="low" style="--value:48"></i></div><b>48%</b></div>
+        <div class="chart-row"><span>MSTRx</span><div class="track"><i class="low" style="--value:49"></i></div><b>49%</b></div>
+        <div class="chart-row"><span>NVDAx</span><div class="track"><i style="--value:104"></i></div><b>104%</b></div>
+        <div class="chart-row"><span>AAPLx</span><div class="track"><i style="--value:145"></i></div><b>145%</b></div>
+        <div class="chart-row"><span>CRCLx</span><div class="track"><i style="--value:291"></i></div><b>291%</b></div>
+        <div class="chart-row"><span>HOODx</span><div class="track"><i style="--value:310"></i></div><b>≥310%</b></div>
+        <div class="chart-axis"><span></span><div><span>0%</span><span>100%</span><span>200%</span><span>300%</span></div><span></span></div>
       </div>
-      <p class="vs">VS</p>
-      <div class="proof-stat good">
-        <div class="num">$0</div>
-        <div class="lbl">Bad debt · ECV</div>
-      </div>
+      <p class="source-note">HOODx is a lower bound: some large trade sizes were unquoted. Jupiter quotes estimate an on-chain exit; they do not include every possible CEX or off-chain buyer. Raw quote ladders are not included in this repository.</p>
     </div>
-    <div class="proof-copy">
-      <h3>Weekend tail · gap −22% · thin book</h3>
-      <p>
-        Fixed LTV keeps lending into a closed market and a shallow route.
-        When the gap opens, the pool eats ~$3.98M of bad debt.
-      </p>
-      <p>
-        ECV refuses the credit beforehand. Calm markets: ECV lends ~the same as fixed LTV.
-        Stress: denial of credit — not loss of the pool.
-      </p>
-    </div>
-  </div>
-</section>
+  </div></section>
 
-<div class="divider"></div>
+  <section id="positions" class="section container" aria-labelledby="positions-title">
+    <div class="section-label"><span>03 / CURRENT POSITION RISK</span><span class="tag">SNAPSHOT + STRESS SCENARIO</span></div>
+    <div class="section-heading"><h2 id="positions-title">Aggregate resilience.<br>Concentrated fragility.</h2><p>At the measured snapshot, borrowers had buffers.<br>GOOGLx still showed liquidation stress.</p></div>
+    <div class="stat-strip"><div><strong>$5.1M</strong><span>borrowed across 1,424 positions</span></div><div><strong>7,040</strong><span>market accounts read</span></div><div><strong>59%</strong><span>of debt needs a &gt;30% fall to liquidate</span></div></div>
+    <div class="risk-detail"><div><span class="eyebrow warning">GOOGLx / POSITION STRESS</span><h3>$0.91M in debt.<br>A book of ~751 tokens.</h3><p>Estimated liquidator results worsen as price falls. The same-block exit is only one route to recovery.</p></div><div class="stress-results"><div><span>−10% price shock</span><strong class="accent">+$2k</strong></div><div><span>−20% price shock</span><strong class="warning">−$18k</strong></div><div><span>−30% price shock</span><strong class="warning">−$224k</strong></div></div></div>
+    <p class="source-note">On-chain read: 27 Sep 2026. Jupiter quote snapshot: 26 Sep 2026. Pitch assumptions: simultaneous xStocks shocks, liquidation to max LTV, 5% bonus. These are modeled liquidator results, not realized protocol losses. <a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Source: slide 5 ↗</a></p>
+  </section>
 
-<section id="stack">
-  <p class="section-label">Stack</p>
-  <h2>Zero install. Node 20+. Offline-first.</h2>
-  <p class="lead">
-    Built for a pitch night where dependencies are risk. Pure ECV model, Jupiter adapter
-    with fallback, backtest engine, and a swarm of calibrator / adversary / monitor agents.
-  </p>
-  <div class="stack-grid">
-    <div class="stack-item">
-      <div class="tag">Chain</div>
-      <h3>Solana</h3>
-      <p>Tokenized equities, USDC settlement, Jupiter routes.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Model</div>
-      <h3>ECV core</h3>
-      <p>Pure functions in <code>src/ecv/</code> — fully testable, no I/O.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Data</div>
-      <h3>Session + vol</h3>
-      <p>NYSE calendar in UTC, realized volatility, depth-aware impact.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Agents</div>
-      <h3>Swarm</h3>
-      <p>Calibrator, adversary, monitor — parameters with hard bounds.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Demo</div>
-      <h3>Dashboard</h3>
-      <p>Waterfall pricing, stress, backtest table — single HTML + API.</p>
-    </div>
-    <div class="stack-item">
-      <div class="tag">Event</div>
-      <h3>Hack Krakow</h3>
-      <p>Colosseum / Blockchain Hack — risk layer, not another lending fork.</p>
-    </div>
-  </div>
-</section>
+  <section id="liquidity" class="section container" aria-labelledby="liquidity-title">
+    <div class="section-label"><span>04 / LIQUIDITY DYNAMICS</span><span class="tag">SNAPSHOTS · 24–26 SEP 2026</span></div>
+    <div class="split"><div><h2 id="liquidity-title">The market moves.<br><span class="muted">The rules stay still.</span></h2><p class="lead">NVDAx profitable exit capacity increased ~33% across the three observations.</p><p>Weekend depth was higher in this sample. A closed underlying market does not automatically mean less liquidity. The measurable question is how much can exit now.</p><p class="source-note">Jupiter NVDAx → USDC, 19 sizes. Profitability assumes a 5% liquidation bonus. The pitch describes the period as ~48 hours. <a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Source: slide 6 ↗</a></p></div>
+    <div class="liquidity-panel"><div class="legend"><span><i class="dot cyan"></i> Profitable capacity</span><span><i class="dot purple"></i> Whole book</span></div>
+      <div class="columns" role="img" aria-label="NVDAx exit capacity in millions of dollars. Thursday 17:09: profitable 1.02, whole book 1.12. Friday 08:39: 1.09 and 1.19. Saturday 13:08: 1.36 and 1.53.">
+        <div class="column-group"><div class="bar-pair"><div style="--height:66.67%"><span>1.02</span></div><div style="--height:73.20%"><span>1.12</span></div></div><b>Thu 17:09</b><small>Market open</small></div>
+        <div class="column-group"><div class="bar-pair"><div style="--height:71.24%"><span>1.09</span></div><div style="--height:77.78%"><span>1.19</span></div></div><b>Fri 08:39</b><small>Market closed</small></div>
+        <div class="column-group"><div class="bar-pair"><div style="--height:88.89%"><span>1.36</span></div><div style="--height:100%"><span>1.53</span></div></div><b>Sat 13:08</b><small>Weekend</small></div>
+      </div><p class="mono chart-unit">CAPACITY / USD MILLIONS</p>
+      <div class="pnl"><p>Same −25% shock<br><small>Liquidator P&amp;L · 55% LTV</small></p><strong class="warning">−$22k</strong><strong class="warning">−$8k</strong><strong class="accent">+$34k</strong></div>
+    </div></div>
+  </section>
 
+  <section id="ecv" class="section section-tinted" aria-labelledby="ecv-title"><div class="container">
+    <div class="section-label"><span>05 / THE PRODUCT</span><span class="tag purple-tag">ECV ENGINE</span></div>
+    <div class="section-heading"><h2 id="ecv-title">One risk quote.<br>Five decisions for the venue.</h2><p>Executable Collateral Value translates liquidity conditions into proposed borrowing limits and risk controls.</p></div>
+    <div class="ecv-flow"><div><span class="index">INPUTS</span><h3>Price + executable liquidity</h3><p>Position size, Jupiter route depth, price impact, market session and volatility.</p></div><span class="flow-arrow" aria-hidden="true">→</span><div class="ecv-core"><img src="assets/rwa-shield-logo.png" width="76" height="76" alt=""><strong>ECV</strong><span>Recoverability → origination limits</span></div><span class="flow-arrow" aria-hidden="true">→</span><div><span class="index">CONSUMER</span><h3>Lending venue / curator</h3><p>Reads the quote, checks freshness and enforces its own borrowing policy.</p></div></div>
+    <div class="outputs"><div><code>max_borrow</code><p>Proposed maximum new debt</p></div><div><code>collateral_cap</code><p>Proposed collateral limit</p></div><div><code>liquidation_route</code><p>Identified exit route</p></div><div><code>risk_premium</code><p>Model risk spread</p></div><div><code>borrow_disabled</code><p>Gate for new borrowing</p></div></div>
+    <div class="principle"><strong>The breaker gates new borrowing.</strong><p>It does not set existing collateral to zero. The executable sale value remains the mark; session and volatility buffers affect origination. The engine also returns a diagnostic <code>breaker_reason</code>.</p></div>
+    <p class="source-note"><a href="https://github.com/Dorianos85/rwa-shield/blob/main/src/ecv/model.mjs">Read the model ↗</a> <span>·</span> <a href="https://github.com/Dorianos85/rwa-shield/blob/main/onchain/README.md">Read the consumer contract ↗</a></p>
+  </div></section>
 
-<section class="card" id="monetization" style="margin:34px 0">
-  <h2>Monetization <span style="opacity:.6;font-size:12px">(hypothesis · to-be-proven)</span></h2>
-  <p style="color:var(--dim,#7C9195)">We monetize the <strong>risk primitive</strong> (recoverable collateral via ECV), not another lending UI. No ARR or locked take-rates yet — pricing after integration talks.</p>
-  <ul>
-    <li><strong>Risk API / SDK</strong> — paid ECV quotes &amp; breakers for venues that already hold xStocks risk (subscription or per-call; free tier for demo).</li>
-    <li><strong>Share of risk premium</strong> — when ECV sits in the borrow path, share the spread that safer limits unlock.</li>
-    <li><strong>Optional vault fees</strong> — secondary only if we run our own market later.</li>
-  </ul>
-  <p style="color:var(--dim,#7C9195)">Hackathon proves avoided bad debt. Buyers: protocols already holding this collateral (Kamino / Jupiter Lend / Project 0–class venues).</p>
-</section>
+  <section id="demo" class="section container" aria-labelledby="demo-title">
+    <div class="section-label"><span>06 / BREAKER DEMO</span><span class="tag purple-tag">SYNTHETIC / OFFLINE</span></div>
+    <div class="section-heading"><h2 id="demo-title">The repository dashboard.<br>The model in your hands.</h2><p>Change the asset, position size, session and depth. Explore the value waterfall, run weekend stress and inspect the synthetic backtest.</p></div>
+    <div class="dashboard-launch"><div><span class="eyebrow accent">ORIGINAL REPOSITORY UI / STATIC EDITION</span><p>Uses the repository's ECV engine and deterministic offline curve. Live Jupiter quoting requires the local API server.</p></div><a class="button primary" href="demo/?session=regular&amp;params=priors">Open full dashboard ↗</a></div>
+    <iframe class="dashboard-frame" src="demo/?session=regular&amp;params=priors" title="RWA Shield repository dashboard — synthetic offline demo" loading="lazy" allow="fullscreen"></iframe>
+    <p class="source-note">The dashboard runs entirely in your browser. Prices and liquidity are synthetic inputs, not live market quotes. Default model priors; no fitted calibration artifact is bundled. <a href="https://github.com/Dorianos85/rwa-shield/blob/main/web/index.html">Original dashboard source ↗</a></p>
+    <details class="source-details"><summary>Compare with the recorded Warsaw pitch demo</summary><p><strong>Recorded snapshot + stress sandbox, slide 8:</strong> TSLAx, $100,000 position; ECV $84,358; safe max borrow $58,684; Kamino LTV amount $55,000. WARNING reflected USDC reserve utilization at the 90% rate kink.</p><p>This recorded UI is a different example from the repository dashboard above. The current public repository does not contain that TSLAx sandbox or its utilization warning logic. These pitch values are not a live calculation.</p><a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Inspect the pitch record ↗</a></details>
+  </section>
 
-<section class="cta-block" id="cta">
-  <p class="section-label" style="text-align:center">Next</p>
-  <h2>Read the model. Run the backtest.</h2>
-  <p class="lead">
-    Clone the repo, start the demo API, and open the dashboard — no npm install required.
-  </p>
-  <div class="cta-actions">
-    <a class="btn btn-primary" href="https://github.com/Dorianos85/rwa-shield">GitHub repository</a>
-    <a class="btn" href="../README.md">README</a>
-    <a class="btn" href="../web/index.html">Live dashboard</a>
-  </div>
-</section>
+  <section id="validation" class="section container" aria-labelledby="validation-title">
+    <div class="section-label"><span>07 / VALIDATION</span><span class="tag purple-tag">SYNTHETIC · IN-SAMPLE</span></div>
+    <div class="section-heading"><h2 id="validation-title">The trade-off<br>belongs in the result.</h2><p>Synthetic tail stress: a 22% weekend gap with a thin book. Reproduced from the public repository's default parameters.</p></div>
+    <div class="validation-grid"><div><p class="metric-label">Fixed 70% LTV / bad debt</p><strong>$5.34M</strong></div><div><p class="metric-label">ECV / bad debt</p><strong class="accent">$0</strong></div><div><p class="metric-label">ECV / new loans refused</p><strong>369<span> / 369</span></strong></div></div>
+    <p class="lead validation-tradeoff">In this tail scenario, ECV refuses every new loan. Zero bad debt comes with zero new credit.</p>
+    <p class="source-note">Generated 110-day hourly series, seed 7, default parameters. The reproduced base scenario supplies ~80% of fixed-LTV credit. This is a model exercise, not historical validation, mainnet performance or a guarantee.</p>
+    <details class="source-details"><summary>Why these figures differ from the pitch</summary><p>Slide 9 reports ~$3.98M fixed-LTV bad debt, $0 ECV bad debt and 369 refusals, with ~100% base credit and ~27% across six scenarios. A clean run of the public repository produces $5,336,023 fixed-LTV tail bad debt and ~80% base credit. The exact pitch calibration artifact is absent, so this page leads with the reproducible default run and preserves the discrepancy here.</p><p>Method limitations: scenarios apply stress across the full window. The current engine declares maturity and execution-lag settings but does not apply delayed execution or scheduled repayments in its loop. These results should not be described as a validated simulation of those features.</p><a href="https://github.com/Dorianos85/rwa-shield/blob/main/src/backtest/engine.mjs">Inspect the engine ↗</a></details>
+  </section>
 
-<footer>
-  <div>RWA Shield · Executable Collateral Value</div>
-  <div class="tags">
-    <span class="tag-pill">Solana</span>
-    <span class="tag-pill">RWA</span>
-    <span class="tag-pill">Colosseum</span>
-    <span class="tag-pill">Hack Krakow</span>
-  </div>
-</footer>
+  <section id="devnet" class="section section-tinted" aria-labelledby="devnet-title"><div class="container">
+    <div class="section-label"><span>08 / SOLANA DEVNET PROOF</span><span class="tag">DEVNET · TEST NETWORK</span></div>
+    <div class="split"><div><h2 id="devnet-title">A risk quote.<br><span class="accent">An on-chain record.</span></h2><p class="lead">The Anchor program publishes the ECV outputs to a per-mint record on Solana devnet.</p><p>The Rust poster supports scheduled reposting. Today, a single authorized signer supplies the quote. Integrators check freshness and enforce borrowing limits.</p><div class="actions"><a class="button primary" href="https://explorer.solana.com/address/5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc?cluster=devnet">Open Solana Explorer ↗</a></div></div>
+    <div class="record-panel"><div class="record-header"><span class="signal"></span><span class="mono">ecv_oracle / DEVNET</span></div><dl><dt>Program ID</dt><dd><code>5nsdYoeBK9TU3fqeutenakSiiyP5w2y8T6MzBRY5cEuc</code></dd><dt>Deployment recorded in pitch</dt><dd>26 September 2026</dd><dt>Record timestamp verified by RPC</dt><dd>26 Sep 2026, 19:55:12 Warsaw<br><small>Historical record; stale against its 30-second TTL</small></dd><dt>Recorded liquidation route</dt><dd><code>offline:synthetic-curve</code><br><small>Synthetic input; proof of publication, not live market data</small></dd><dt>Trust model</dt><dd>Single-authority signer</dd></dl><div class="record-links"><a href="https://explorer.solana.com/address/54jQEaQugDtKdXhX6XoBVtb3vYfD4tWGjpsmb6W4wMRw?cluster=devnet">SPYx ECV record ↗</a><a href="https://explorer.solana.com/address/Dty68hZxpsTbGySXyNa9uPXCqCoTKwYHMQ4ZANPQskZK?cluster=devnet">Config account ↗</a></div></div></div>
+    <div class="scope-row"><div><span class="eyebrow accent">IMPLEMENTED</span><p>ECV engine, breaker, Anchor publication and periodic Rust posting.</p></div><div><span class="eyebrow muted">NEXT</span><p>Verifiable inputs, multiple signers, reference vault and borrow gate.</p></div><div><span class="eyebrow warning">BOUNDARY</span><p>Devnet proof of publication. No mainnet deployment or on-chain enforcement claimed.</p></div></div>
+    <p class="source-note"><a href="https://github.com/Dorianos85/rwa-shield/tree/main/onchain">On-chain implementation ↗</a> <span>·</span> <a href="devnet-proof.json">Dated RPC verification ↗</a></p>
+  </div></section>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
-  }
-}
-</script>
-<script type="module">
-import * as THREE from 'three';
+  <section id="solana" class="section container" aria-labelledby="solana-title">
+    <div class="section-label"><span>09 / WHY SOLANA</span><span>AT THE POINT OF EXECUTION</span></div>
+    <h2 id="solana-title">Built where the collateral trades.</h2><p class="lead narrow">xStocks collateral and Jupiter routes give ECV a concrete market to measure. The integration target is the venue that originates the loan.</p>
+    <ol class="architecture"><li><span>01</span><strong>xStocks</strong><small>Collateral</small></li><li><span>02</span><strong>Jupiter</strong><small>Executable routes</small></li><li><span>03</span><strong>ECV</strong><small>Risk quote</small></li><li><span>04</span><strong>Venue / curator</strong><small>Consumer integration</small></li><li><span>05</span><strong>Risk controls</strong><small>Enforced by consumer</small></li></ol>
+    <p class="source-note">Target architecture, not a claim of a commercial partnership or a deployed Kamino integration.</p>
+  </section>
 
-const wrap = document.getElementById('canvas-wrap');
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  <section id="market" class="section container" aria-labelledby="market-title">
+    <div class="section-label"><span>10 / MARKET &amp; BUSINESS</span><span>OUR INITIAL WEDGE</span></div>
+    <div class="split"><h2 id="market-title">Focused infrastructure<br>for a specific exit.</h2><div><p class="lead">Initial customer: a Solana lending venue, vault or curator integrating tokenized equities.</p><p>Risk management is an established category. Our focus is position-level exit liquidity for xStocks and composable ECV quotes that a venue can consume.</p></div></div>
+    <div class="market-grid"><article><span class="eyebrow muted">REFERENCE CATEGORY</span><h3>Chaos Labs</h3><p>Risk management and risk oracles.</p><a href="https://chaoslabs.xyz/">Explore Chaos Labs ↗</a></article><article><span class="eyebrow muted">REFERENCE CATEGORY</span><h3>Gauntlet</h3><p>Vault curation and risk management.</p><a href="https://www.gauntlet.xyz/">Explore Gauntlet ↗</a></article><article class="wedge"><span class="eyebrow accent">RWA SHIELD / INITIAL FOCUS</span><h3>Tokenized equities on Solana</h3><p>Specialized liquidity data, position risk and ECV quotes. A potential data supplier to broader risk platforms.</p></article></div>
+    <p class="source-note">Positioning follows the Warsaw pitch, slide 12. Larger providers can enter this market. Named organizations are market references, not customers or partners.</p>
+  </section>
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-camera.position.set(0, 0.15, 4.2);
+  <section id="monetization" class="section section-tinted" aria-labelledby="monetization-title"><div class="container">
+    <div class="section-label"><span>11 / MONETIZATION</span><span class="tag neutral-tag">HYPOTHESIS · NOT ARR</span></div>
+    <div class="section-heading"><h2 id="monetization-title">Three paths to a business.</h2><p>Proposed models to validate with venues.<br>No revenue or signed customers claimed.</p></div>
+    <div class="business-options"><article><span class="index">01 / API</span><h3>Risk API &amp; SDK</h3><p>Paid ECV quotes and breaker signals for lending venues.</p></article><article><span class="index">02 / BORROW PATH</span><h3>Share of risk premium</h3><p>If a venue integrates ECV into loan origination.</p></article><article><span class="index">03 / OPTIONAL</span><h3>Reference vault fees</h3><p>If RWA Shield eventually operates a reference vault.</p></article></div>
+    <p class="source-note"><a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Source: Warsaw pitch, slide 13 ↗</a></p>
+  </div></section>
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);
-wrap.appendChild(renderer.domElement);
+  <section id="team" class="section container" aria-labelledby="team-title">
+    <div class="section-label"><span>12 / THE TEAM</span><span>PRODUCT · RISK · ENGINEERING</span></div>
+    <div class="section-heading"><h2 id="team-title">The people behind the model.</h2><p>Building at the intersection of tokenized assets,<br>financial infrastructure and DeFi.</p></div>
+    <div class="team-grid"><article><img src="assets/dorian-zaczek.png" alt="Dorian Żaczek" width="600" height="600" loading="lazy"><h3>Dorian Żaczek</h3><p>CEO, Founder &amp;<br>Product Manager</p></article><article><img src="assets/julita-szaruta.png" alt="Julita Szaruta" width="600" height="600" loading="lazy"><h3>Julita Szaruta</h3><p>Legal, Tax &amp; Regulatory<br>MiCA</p></article><article><img src="assets/mieszko-manijak.png" alt="Mieszko Manijak" width="600" height="600" loading="lazy"><h3>Mieszko Manijak</h3><p>CTO &amp; DeFi Architect Engineer<br>Anchor program + Rust poster</p></article><article><div class="team-initials" aria-label="Adam Książkiewicz initials; no portrait supplied">AK<span>investiatech</span></div><h3>Adam Książkiewicz</h3><p>Rust · devnet deployment<br>Quant markets · <a href="https://github.com/investiatech">investiatech ↗</a></p></article></div>
+    <div class="advisor"><img src="assets/adam-kwak.png" alt="Adam Kwak" width="300" height="300" loading="lazy"><div><span class="eyebrow muted">ADVISOR</span><h3>Adam Kwak</h3><p>Staff-level COBOL / mainframe. 20 years in core financial infrastructure, Scandinavia.</p></div><div class="hiring"><span class="eyebrow accent">HIRING</span><p>Rust / Anchor<br>Frontend</p></div></div>
+    <p class="source-note">Names, roles and original portraits: Warsaw pitch, slide 14. Adam Książkiewicz is represented by initials in the source deck.</p>
+  </section>
 
-const group = new THREE.Group();
-scene.add(group);
-
-// Soft shield: translucent icosahedron + wireframe torus
-const icoGeo = new THREE.IcosahedronGeometry(1.15, 1);
-const icoMat = new THREE.MeshBasicMaterial({
-  color: 0x00ff88,
-  wireframe: true,
-  transparent: true,
-  opacity: 0.14
-});
-const ico = new THREE.Mesh(icoGeo, icoMat);
-group.add(ico);
-
-const torusGeo = new THREE.TorusGeometry(1.45, 0.04, 8, 64);
-const torusMat = new THREE.MeshBasicMaterial({
-  color: 0x00d4ff,
-  transparent: true,
-  opacity: 0.22
-});
-const torus = new THREE.Mesh(torusGeo, torusMat);
-torus.rotation.x = Math.PI / 2.4;
-group.add(torus);
-
-// Layered translucent planes (vault / shield suggestion)
-const planeGeo = new THREE.PlaneGeometry(2.4, 2.4);
-for (let i = 0; i < 3; i++) {
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0x00ff88,
-    transparent: true,
-    opacity: 0.03 + i * 0.015,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-  const plane = new THREE.Mesh(planeGeo, mat);
-  plane.position.z = -0.35 + i * 0.28;
-  plane.rotation.y = (i - 1) * 0.12;
-  group.add(plane);
-}
-
-const ringGeo = new THREE.RingGeometry(1.7, 1.74, 64);
-const ringMat = new THREE.MeshBasicMaterial({
-  color: 0x2a3e45,
-  transparent: true,
-  opacity: 0.5,
-  side: THREE.DoubleSide
-});
-const ring = new THREE.Mesh(ringGeo, ringMat);
-ring.rotation.x = Math.PI / 2.6;
-group.add(ring);
-
-group.position.set(1.1, 0.1, 0);
-
-function resize() {
-  const w = wrap.clientWidth;
-  const h = wrap.clientHeight;
-  camera.aspect = w / Math.max(h, 1);
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
-}
-resize();
-window.addEventListener('resize', resize);
-
-let raf = 0;
-const clock = new THREE.Clock();
-
-function renderFrame() {
-  const t = clock.getElapsedTime();
-  if (!reduceMotion) {
-    group.rotation.y = t * 0.08;
-    group.rotation.x = Math.sin(t * 0.05) * 0.08;
-    torus.rotation.z = t * 0.12;
-    ico.rotation.y = -t * 0.05;
-  } else {
-    group.rotation.set(0.12, 0.4, 0);
-  }
-  renderer.render(scene, camera);
-}
-
-function loop() {
-  raf = requestAnimationFrame(loop);
-  renderFrame();
-}
-
-if (reduceMotion) {
-  renderFrame();
-} else {
-  loop();
-}
-
-// Pause when tab hidden
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    cancelAnimationFrame(raf);
-  } else if (!reduceMotion) {
-    clock.start();
-    loop();
-  }
-});
-
-// Nav scroll border
-const nav = document.getElementById('nav');
-window.addEventListener('scroll', () => {
-  nav.classList.toggle('scrolled', window.scrollY > 20);
-}, { passive: true });
-</script>
+  <section id="cta" class="final-cta section" aria-labelledby="cta-title"><div class="container"><span class="eyebrow accent">RWA SHIELD / EXECUTABLE COLLATERAL VALUE</span><h2 id="cta-title">Price what can<br>actually be <span>recovered.</span></h2><p>Inspect the engine. Explore the evidence. Verify the devnet record.</p><div class="actions"><a class="button primary" href="https://github.com/Dorianos85/rwa-shield">View GitHub ↗</a><a class="button" href="#devnet">View devnet proof ↓</a><a class="text-link" href="demo/?session=regular&amp;params=priors">Dashboard / Demo ↗</a></div></div></section>
+</main>
+<footer class="container"><a class="brand" href="#main"><img src="assets/rwa-shield-logo.png" alt="" width="32" height="32"><span>RWA <b>SHIELD</b></span></a><p>Research &amp; devnet prototype.<br>Snapshots are dated. Scenarios are synthetic.</p><div><a href="deck/RWA-Shield-Warsaw-Pitch-Best.pptx">Latest pitch (PPTX) ↗</a><a href="WEBSITE_V2_SOURCES.md">Sources &amp; limitations ↗</a></div></footer>
 </body>
 </html>
