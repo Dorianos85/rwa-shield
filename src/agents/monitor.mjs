@@ -8,6 +8,7 @@
  */
 
 import { MINTS, depthProbe, syntheticQuote } from '../data/jupiter.mjs';
+import { fetchLivePrice, OFFLINE_PRICES } from '../data/oracle.mjs';
 import { sessionState, hoursToReopen } from '../data/session.mjs';
 import { computeEcv } from '../ecv/model.mjs';
 import { DEFAULT_PARAMS } from '../ecv/params.mjs';
@@ -17,9 +18,9 @@ import { realizedVolAnnual } from '../data/volatility.mjs';
 const INTERVAL_MS = Number(process.env.INTERVAL_MS || 60_000);
 const OFFLINE = process.env.OFFLINE === '1';
 const ASSETS = [
-  { symbol: 'SPYx', mint: MINTS.SPYx, price: 612.4 },
-  { symbol: 'QQQx', mint: MINTS.QQQx, price: 528.1 },
-  { symbol: 'NVDAx', mint: MINTS.NVDAx, price: 184.9 }
+  { symbol: 'SPYx', mint: MINTS.SPYx },
+  { symbol: 'QQQx', mint: MINTS.QQQx },
+  { symbol: 'NVDAx', mint: MINTS.NVDAx }
 ];
 
 const hist = generateSeries({ hours: 24 * 30 }).map(x => x.p);
@@ -34,12 +35,16 @@ async function tick() {
   for (const a of ASSETS) {
     const notional = 100_000;
     let impactPct, routableUsd, route;
+    const livePrice = OFFLINE
+      ? { price: OFFLINE_PRICES[a.symbol], priceAgeSec: 5, source: 'offline-fallback' }
+      : await fetchLivePrice({ mint: a.mint, symbol: a.symbol });
+    const price = livePrice.price;
 
     if (OFFLINE) {
       const q = syntheticQuote({ notionalUsd: notional, depthUsd: state === 'regular' ? 400_000 : 160_000 });
       impactPct = q.impactPct; routableUsd = 400_000; route = q.route;
     } else {
-      const probe = await depthProbe({ mint: a.mint, unitPrice: a.price });
+      const probe = await depthProbe({ mint: a.mint, unitPrice: price });
       const worst = probe.curve.find(c => c.notionalUsd >= notional) || probe.curve.at(-1);
       impactPct = worst?.impactPct ?? 100;
       routableUsd = probe.routableUsd;
@@ -47,8 +52,8 @@ async function tick() {
     }
 
     const r = computeEcv({
-      mint: a.mint, symbol: a.symbol, qty: notional / a.price,
-      oraclePrice: a.price, twapPrice: a.price, priceAgeSec: 3,
+      mint: a.mint, symbol: a.symbol, qty: notional / price,
+      oraclePrice: price, twapPrice: price, priceAgeSec: livePrice.priceAgeSec,
       impactPct, routableUsd, sessionState: state, realizedVolAnnual: vol
     }, DEFAULT_PARAMS);
 

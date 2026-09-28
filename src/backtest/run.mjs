@@ -3,7 +3,7 @@
 
 import { runBacktest } from './engine.mjs';
 import { SCENARIOS } from './scenarios.mjs';
-import { generateSeries, loadSeries } from '../data/prices.mjs';
+import { generateSeries, loadSeries, loadSeriesSource } from '../data/prices.mjs';
 import { DEFAULT_PARAMS } from '../ecv/params.mjs';
 import { readFile } from 'node:fs/promises';
 
@@ -18,7 +18,9 @@ try {
 
 const real = await loadSeries(symbol);
 const base = real ?? generateSeries();
+const provenance = real ? (await loadSeriesSource(symbol)) : null;
 console.log(`series: ${real ? 'real ' + symbol : 'generated'} | ${base.length} hourly points\n`);
+if (provenance) console.log(`source: ${provenance}\n`);
 
 const rows = [];
 for (const sc of SCENARIOS) {
